@@ -1,0 +1,34 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Board {
+  id        String   @id @default(uuid())
+  title     String
+  columns   Column[]
+  createdAt DateTime @default(now())
+}
+
+model Column {
+  id      String @id @default(uuid())
+  title   String
+  order   Int
+  board   Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  boardId String
+  tasks   Task[]
+}
+
+model Task {
+  id         String   @id @default(cuid())
+  content    String
+  order      Int
+  columnId   String
+  column     Column   @relation(fields: [columnId], references: [id])
+  lockedBy   String?  
+  lockedAt   DateTime? 
+}
