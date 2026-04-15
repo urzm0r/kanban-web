@@ -27,8 +27,16 @@ model Task {
   id         String   @id @default(cuid())
   content    String
   order      Int
+  completed  Boolean @default(false)
   columnId   String
   column     Column   @relation(fields: [columnId], references: [id])
   lockedBy   String?  
   lockedAt   DateTime? 
+  createdAt DateTime @default(now())
+  tags Tag[]
+}
+
+model Tag {
+  title String @id
+  tasks Task[]
 }

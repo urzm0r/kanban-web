@@ -6,7 +6,7 @@ declare global {
       card: Prisma.card
       cardExists: boolean
       listId: string
-      listExists: boolean
+      boardId: string
     }
   }
 }
