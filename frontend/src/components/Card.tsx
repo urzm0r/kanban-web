@@ -1,16 +1,16 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Lock } from "lucide-react";
-import type { Task } from "../types";
+import type { Card as CardType } from "../types";
 
 interface Props {
-  task: Task;
+  card: CardType;
   currentSocketId: string | null;
 }
 
-export function TaskCard({ task, currentSocketId }: Props) {
-  // Task jest zablokowany jeśli ma ustalone lockedBy i to lockedBy nie jest naszym socketID
-  const isLockedByOther = task.lockedBy !== null && task.lockedBy !== currentSocketId;
+export function Card({ card, currentSocketId }: Props) {
+  // Task/Card jest zablokowany jeśli ma ustalone lockedBy i to lockedBy nie jest naszym socketID
+  const isLockedByOther = card.lockedBy !== null && card.lockedBy !== currentSocketId;
 
   const {
     setNodeRef,
@@ -20,10 +20,10 @@ export function TaskCard({ task, currentSocketId }: Props) {
     transition,
     isDragging,
   } = useSortable({
-    id: task.id,
+    id: card.id,
     data: {
-      type: "Task",
-      task,
+      type: "Card",
+      card,
     },
     disabled: isLockedByOther,
   });
@@ -55,7 +55,7 @@ export function TaskCard({ task, currentSocketId }: Props) {
     >
       <div className="flex justify-between items-start gap-2">
         <p className={`text-sm ${isLockedByOther ? 'text-slate-500' : 'text-[#f8fafc]'}`}>
-          {task.content}
+          {card.content}
         </p>
 
         {isLockedByOther && (

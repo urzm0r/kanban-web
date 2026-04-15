@@ -1,22 +1,22 @@
-export interface Task {
+export interface Card {
   id: string;
   content: string;
   order: number;
-  columnId: string;
+  listId: string;
   lockedBy: string | null;
   lockedAt: string | null;
 }
 
-export interface ColumnType {
+export interface ListType {
   id: string;
   title: string;
   order: number;
   boardId: string;
-  tasks: Task[];
+  cards: Card[];
 }
 
 export interface BoardType {
   id: string;
   title: string;
-  columns: ColumnType[];
+  lists: ListType[];
 }

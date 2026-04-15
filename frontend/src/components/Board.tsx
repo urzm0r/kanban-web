@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { io, Socket } from "socket.io-client";
 import {
   DndContext,
@@ -10,16 +10,25 @@ import {
   useSensors,
   closestCorners,
 } from "@dnd-kit/core";
-import { Column } from "./Column";
-import { TaskCard } from "./TaskCard";
-import type { BoardType, Task } from "../types";
+import { List } from "./List";
+import { Card as CardComp } from "./Card";
+import type { BoardType, Card } from "../types";
+import { LogOut, Plus } from "lucide-react";
 
 let socket: Socket;
 
-export function Board() {
+interface Props {
+  token: string;
+  onLogout: () => void;
+}
+
+export function Board({ token, onLogout }: Props) {
   const [board, setBoard] = useState<BoardType | null>(null);
-  const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [activeCard, setActiveCard] = useState<Card | null>(null);
   const [socketId, setSocketId] = useState<string | null>(null);
+  
+  const [isAddingList, setIsAddingList] = useState(false);
+  const [newListTitle, setNewListTitle] = useState("");
 
   useEffect(() => {
     socket = io("http://localhost:3001");
@@ -28,19 +37,23 @@ export function Board() {
       setSocketId(socket.id || null);
     });
 
-    socket.on("task:locked", ({ taskId, lockedBy }) => {
-      updateTaskStatus(taskId, { lockedBy, lockedAt: new Date().toISOString() });
+    socket.on("card:locked", ({ cardId, lockedBy }) => {
+      updateCardStatus(cardId, { lockedBy, lockedAt: new Date().toISOString() });
     });
 
-    socket.on("task:unlocked", ({ taskId }) => {
-      updateTaskStatus(taskId, { lockedBy: null, lockedAt: null });
+    socket.on("card:unlocked", ({ cardId }) => {
+      updateCardStatus(cardId, { lockedBy: null, lockedAt: null });
     });
 
-    socket.on("task:moved", () => {
+    socket.on("card:moved", () => {
       fetchBoard();
     });
 
-    socket.on("task:unlocked_all", () => {
+    socket.on("card:unlocked_all", () => {
+      fetchBoard();
+    });
+
+    socket.on("board:updated", () => {
       fetchBoard();
     });
 
@@ -49,11 +62,14 @@ export function Board() {
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [token]);
 
   const fetchBoard = async () => {
     try {
-      const res = await fetch("http://localhost:3001/boards");
+      const res = await fetch("http://localhost:3001/boards", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.status === 401) return onLogout();
       const data = await res.json();
       if (data && data.length > 0) {
         setBoard(data[0]);
@@ -63,15 +79,36 @@ export function Board() {
     }
   };
 
-  const updateTaskStatus = (taskId: string, updates: Partial<Task>) => {
+  const updateCardStatus = (cardId: string, updates: Partial<Card>) => {
     setBoard((prev) => {
       if (!prev) return prev;
-      const newColumns = prev.columns.map(col => ({
-        ...col,
-        tasks: col.tasks.map(t => t.id === taskId ? { ...t, ...updates } : t)
+      const newLists = prev.lists.map(list => ({
+        ...list,
+        cards: list.cards.map(c => c.id === cardId ? { ...c, ...updates } : c)
       }));
-      return { ...prev, columns: newColumns };
+      return { ...prev, lists: newLists };
     });
+  };
+
+  const handleCreateList = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newListTitle.trim() || !board) return;
+    
+    try {
+      await fetch("http://localhost:3001/api/lists", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ title: newListTitle, boardId: board.id }),
+      });
+      setNewListTitle("");
+      setIsAddingList(false);
+      fetchBoard();
+    } catch (err) {
+      console.error("Failed to add list", err);
+    }
   };
 
   const sensors = useSensors(
@@ -82,19 +119,19 @@ export function Board() {
 
   const handleDragStart = (e: DragStartEvent) => {
     const { active } = e;
-    if (active.data.current?.type === "Task") {
-      setActiveTask(active.data.current.task);
-      socket.emit("task:locked", active.id);
+    if (active.data.current?.type === "Card") {
+      setActiveCard(active.data.current.card);
+      socket.emit("card:locked", active.id);
     }
   };
 
   const handleDragEnd = (e: DragEndEvent) => {
-    setActiveTask(null);
+    setActiveCard(null);
     const { active, over } = e;
 
     if (!over) {
-      if (active.data.current?.type === "Task") {
-        socket.emit("task:unlocked", active.id);
+      if (active.data.current?.type === "Card") {
+        socket.emit("card:unlocked", active.id);
       }
       return;
     }
@@ -103,31 +140,31 @@ export function Board() {
     const overId = over.id;
 
     if (activeId === overId) {
-      socket.emit("task:unlocked", activeId);
+      socket.emit("card:unlocked", activeId);
       return;
     }
 
-    const activeTaskData = active.data.current?.task as Task;
+    const activeCardData = active.data.current?.card as Card;
     const overDataType = over.data.current?.type;
-    let newColumnId = activeTaskData.columnId;
+    let newListId = activeCardData.listId;
 
-    if (overDataType === "Column") {
-      newColumnId = String(overId);
-    } else if (overDataType === "Task") {
-      newColumnId = over.data.current?.task.columnId;
+    if (overDataType === "List") {
+      newListId = String(overId);
+    } else if (overDataType === "Card") {
+      newListId = over.data.current?.card.listId;
     }
 
     // Optymistyczna synchronizacja przed siecią
     setBoard(prev => {
       if (!prev) return prev;
-      let p = { ...prev, columns: [...prev.columns] };
+      let p = { ...prev, lists: [...prev.lists] };
       return p;
     });
 
-    socket.emit("task:moved", {
-      taskId: activeId,
-      newColumnId,
-      newOrder: 0 // Uproszczenie kolejności wizualnej
+    socket.emit("card:moved", {
+      cardId: activeId,
+      newListId,
+      newOrder: 0
     });
 
     setTimeout(() => fetchBoard(), 100);
@@ -145,11 +182,19 @@ export function Board() {
 
   return (
     <div className="flex flex-col h-screen w-full bg-[#0f172a] text-slate-100 font-sans">
-      <header className="p-6 border-b border-slate-800 bg-[#0f172a]">
-        <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">
-          {board?.title || "Kanban Project"}
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">Live collaborative view</p>
+      <header className="p-6 border-b border-slate-800 bg-[#0f172a] flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">
+            {board?.title || "Kanban Project"}
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">Live collaborative view</p>
+        </div>
+        <button 
+          onClick={onLogout} 
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700"
+        >
+          <LogOut size={16} /> Logout
+        </button>
       </header>
 
       <main className="flex-1 overflow-x-auto overflow-y-hidden">
@@ -160,14 +205,46 @@ export function Board() {
           onDragEnd={handleDragEnd}
         >
           <div className="flex gap-6 p-8 items-start h-full w-max">
-            {board?.columns.map(col => (
-              <Column key={col.id} column={col} tasks={col.tasks} currentSocketId={socketId} />
+            {board?.lists.map(list => (
+              <List key={list.id} list={list} cards={list.cards} currentSocketId={socketId} token={token} onAddCard={fetchBoard} />
             ))}
+            
+            {/* Add New List Button */}
+            {!isAddingList ? (
+              <button 
+                onClick={() => setIsAddingList(true)}
+                className="flex items-center gap-2 shrink-0 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-slate-600 rounded-xl w-[320px] p-4 text-slate-300 transition-colors"
+              >
+                <Plus size={20} /> <span className="font-medium">Add another list</span>
+              </button>
+            ) : (
+           	<div className="shrink-0 bg-[#1e293b] rounded-xl w-[320px] p-3 border border-slate-700 shadow-lg">
+                <form onSubmit={handleCreateList} className="flex flex-col gap-2">
+                  <input
+                    autoFocus
+                    value={newListTitle}
+                    onChange={(e) => setNewListTitle(e.target.value)}
+                    placeholder="Enter list title..."
+                    className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-600 rounded focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    required
+                  />
+                  <div className="flex items-center gap-2 pt-1">
+                    <button type="submit" className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white font-medium rounded transition-colors">
+                      Add list
+                    </button>
+                    <button type="button" onClick={() => setIsAddingList(false)} className="px-3 py-1.5 text-sm text-slate-400 hover:text-slate-200 transition-colors">
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+            
           </div>
           <DragOverlay>
-            {activeTask ? (
+            {activeCard ? (
               <div className="rotate-3 scale-105 transition-transform shadow-2xl shadow-[#3b82f6]/20">
-                <TaskCard task={activeTask} currentSocketId={socketId} />
+                <CardComp card={activeCard} currentSocketId={socketId} />
               </div>
             ) : null}
           </DragOverlay>
