@@ -1,11 +1,13 @@
 import "dotenv/config";
-import express from 'express';
+import express, { type Request, type Response, type NextFunction } from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { PrismaClient } from './generated/prisma/index.js';
 import cors from 'cors';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
 const pool = new Pool({ connectionString: process.env["DATABASE_URL"] });
 const adapter = new PrismaPg(pool);
@@ -18,6 +20,8 @@ const io = new Server(httpServer, {
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
     }
 });
+
+const JWT_SECRET = process.env["JWT_SECRET"] || "super-secret-key-123";
 
 app.use(cors());
 app.use(express.json());
