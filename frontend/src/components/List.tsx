@@ -102,6 +102,7 @@ export function List({ list, cards, currentSocketId, token, onAddCard, onOpenMod
       ${isOver ? 'border-[#3b82f6]/50 shadow-[#3b82f6]/10 shadow-lg' : isDragging ? 'opacity-40 border-[#3b82f6]' : 'border-[#26282e]'} 
       overflow-hidden shadow-sm`}
     >
+      {/* Header */}
       <div 
         {...attributes}
         {...listeners}
@@ -150,6 +151,7 @@ export function List({ list, cards, currentSocketId, token, onAddCard, onOpenMod
           <TelemetryColumn boardCards={boardCards || []} lists={allLists || []} />
       ) : (
           <div className="flex flex-col flex-grow overflow-hidden cursor-default border-t border-[#26282e]" onPointerDown={e => e.stopPropagation()}>
+            {/* List content */}
             <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3 custom-scrollbar">
               <SortableContext items={cards.map(t => t.id)} strategy={verticalListSortingStrategy}>
                 {cards.map(card => (
@@ -158,6 +160,7 @@ export function List({ list, cards, currentSocketId, token, onAddCard, onOpenMod
               </SortableContext>
             </div>
             
+            {/* Footer */}
             <div className="px-3 pb-3 pt-1 shrink-0">
               {!isAdding ? (
                 <button 
