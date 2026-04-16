@@ -4,6 +4,7 @@ import { withTranslation } from "react-i18next";
 function AuthScreen({ t, i18n, onAuthSuccess }: { t:any, i18n: any, onAuthSuccess: (token: string) => void }) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
@@ -15,7 +16,7 @@ function AuthScreen({ t, i18n, onAuthSuccess }: { t:any, i18n: any, onAuthSucces
       const res = await fetch(`http://localhost:3001${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(isLogin ? { email, password } : { email, name, password }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Authentication failed");
@@ -49,6 +50,19 @@ function AuthScreen({ t, i18n, onAuthSuccess }: { t:any, i18n: any, onAuthSucces
               placeholder="mail@example.com"
             />
           </div>
+          {!isLogin && (
+            <div>
+              <label className="block text-sm font-medium text-slate-300">{"Username"}</label>
+              <input
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full mt-1 px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                placeholder="Twoja nazwa"
+              />
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-slate-300">{t("password")}</label>
             <input

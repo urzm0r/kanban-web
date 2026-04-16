@@ -3,13 +3,22 @@ export interface Card {
   content: string;
   description: string | null;
   isDone: boolean;
-  tags: string[];
   createdAt: string;
   completedAt: string | null;
   order: number;
   listId: string;
   lockedBy: string | null;
+  lockedByName: string | null;
   lockedAt: string | null;
+  inProgress: boolean;
+  priority: string;
+  tags: TagType[];
+}
+
+export interface TagType {
+  id: string;
+  name: string;
+  color: string | null;
 }
 
 export interface ListType {
@@ -25,4 +34,10 @@ export interface BoardType {
   id: string;
   title: string;
   lists: ListType[];
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
 }

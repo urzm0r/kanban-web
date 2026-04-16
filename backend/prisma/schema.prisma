@@ -10,6 +10,7 @@ datasource db {
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
+  name      String   @unique
   password  String
   createdAt DateTime @default(now())
 }
@@ -36,12 +37,22 @@ model Card {
   content    String
   description String?
   isDone     Boolean  @default(false)
-  tags       String[] @default([])
+  priority   String   @default("Medium")
+  tags       Tag[]
   createdAt  DateTime @default(now())
   completedAt DateTime?
   order      Int
   listId     String
   list       List     @relation(fields: [listId], references: [id], onDelete: Cascade)
-  lockedBy   String?  
-  lockedAt   DateTime? 
+  lockedBy     String?  
+  lockedByName String?
+  lockedAt     DateTime? 
+  inProgress Boolean  @default(false)
+}
+
+model Tag {
+  id      String @id @default(cuid())
+  name    String @unique
+  color   String?
+  cards   Card[]
 }

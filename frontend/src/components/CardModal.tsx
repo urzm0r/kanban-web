@@ -1,22 +1,31 @@
-import { useState, useEffect } from "react";
-import { X, CheckCircle } from "lucide-react";
-import type { Card as CardType } from "../types";
+import { useState, useEffect, useRef } from "react";
+import { X, CheckCircle, Activity, Tag as TagIcon, BarChart2 } from "lucide-react";
+import type { Card as CardType, ListType, TagType } from "../types";
 
 import { withTranslation } from "react-i18next";
 
 interface Props {
-  t: any,
-  i18n: any,
+  t: any;
+  i18n: any;
   card: CardType;
   token: string;
   onClose: () => void;
   onUpdate: () => void;
   socket: any;
+  lists: ListType[];
 }
 
-function CardModal({ t, i18n, card, token, onClose, onUpdate, socket }: Props) {
+function CardModal({ t, i18n, card, token, onClose, onUpdate, socket, lists }: Props) {
   const [description, setDescription] = useState(card.description || "");
+  const [priority, setPriority] = useState(card.priority || "Medium");
+  const [tags, setTags] = useState<TagType[]>(card.tags || []);
+  
+  const [availableTags, setAvailableTags] = useState<TagType[]>([]);
+  const [tagInput, setTagInput] = useState("");
+  const [showTagDropdown, setShowTagDropdown] = useState(false);
+  
   const [isSaving, setIsSaving] = useState(false);
+  const tagDropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Lock the card for editing for safety
@@ -26,11 +35,63 @@ function CardModal({ t, i18n, card, token, onClose, onUpdate, socket }: Props) {
     };
   }, [card.id, card.lockedBy, socket]);
 
+  useEffect(() => {
+    fetch("http://localhost:3001/api/tags", {
+        headers: { Authorization: `Bearer ${token}` }
+    }).then(r => r.json()).then(data => setAvailableTags(data || [])).catch(console.error);
+  }, [token]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tagDropRef.current && !tagDropRef.current.contains(event.target as Node)) {
+        setShowTagDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleAddTag = async (tagName: string) => {
+      const name = tagName.trim();
+      if (!name) return;
+      
+      const existing = availableTags.find(t => t.name.toLowerCase() === name.toLowerCase());
+      if (existing) {
+          if (!tags.find(t => t.id === existing.id)) setTags([...tags, existing]);
+          setTagInput("");
+          setShowTagDropdown(false);
+          return;
+      }
+      
+      // Create new tag
+      try {
+          const res = await fetch("http://localhost:3001/api/tags", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ name })
+          });
+          const newTag = await res.json();
+          setAvailableTags([...availableTags, newTag]);
+          setTags([...tags, newTag]);
+          setTagInput("");
+          setShowTagDropdown(false);
+      } catch(e) { console.error(e) }
+  };
+
+  const handleRemoveTag = (tagId: string) => {
+      setTags(tags.filter(t => t.id !== tagId));
+  };
+
   const handleSave = async (markAsDone?: boolean) => {
     setIsSaving(true);
-    const updates: any = { description };
+    const updates: any = { 
+        description,
+        priority,
+        tags: tags.map(t => t.id)
+    };
     if (markAsDone !== undefined) {
         updates.isDone = markAsDone;
+        updates.inProgress = false;
     }
     try {
       await fetch(`http://localhost:3001/api/cards/${card.id}`, {
@@ -57,6 +118,28 @@ function CardModal({ t, i18n, card, token, onClose, onUpdate, socket }: Props) {
     }
   };
 
+  const handleSetInProgress = async () => {
+    setIsSaving(true);
+    const updates: any = { isDone: false, inProgress: true };
+    try {
+      await fetch(`http://localhost:3001/api/cards/${card.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(updates)
+      });
+      onUpdate();
+      onClose();
+    } catch (e) {
+      console.error(e);
+      setIsSaving(false);
+    }
+  };
+
+  const filteredTags = availableTags.filter(t => t.name.toLowerCase().includes(tagInput.toLowerCase()) && !tags.find(sel => sel.id === t.id));
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 cursor-auto" onClick={handleOverlayClick}>
       <div className="bg-[#1e293b] rounded-xl border border-slate-700 shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -75,10 +158,75 @@ function CardModal({ t, i18n, card, token, onClose, onUpdate, socket }: Props) {
         </div>
 
         <div className="p-6 flex-grow overflow-y-auto flex flex-col gap-6">
-            <div className="flex flex-col gap-2">
+            
+            <div className="flex flex-wrap gap-6">
+                {/* Priority Selection */}
+                <div className="flex flex-col gap-2 flex-1 min-w-[200px]">
+                    <label className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2"><BarChart2 size={16}/> Priority</label>
+                    <div className="flex gap-2">
+                        {['Low', 'Medium', 'High'].map(p => (
+                            <button
+                                key={p}
+                                onClick={() => setPriority(p)}
+                                className={`flex-1 py-2 px-3 rounded-md text-xs font-bold transition-all border ${
+                                    priority === p 
+                                    ? (p === 'High' ? 'bg-rose-500/20 text-rose-400 border-rose-500/50' : p === 'Medium' ? 'bg-amber-500/20 text-amber-400 border-amber-500/50' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50')
+                                    : 'bg-slate-800/50 text-slate-400 border-slate-700 hover:bg-slate-700'
+                                }`}
+                            >{p}</button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Tags Management */}
+                <div className="flex flex-col gap-2 flex-1 min-w-[200px]" ref={tagDropRef}>
+                    <label className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2"><TagIcon size={16}/> Tags</label>
+                    
+                    <div className="flex flex-wrap gap-2 mb-1">
+                        {tags.map(t => (
+                            <span key={t.id} className="bg-[#1c2c4d] text-[#6082e6] border border-[#2e4073] px-2 py-1 flex items-center gap-1 rounded text-xs font-bold">
+                                {t.name}
+                                <button onClick={() => handleRemoveTag(t.id)} className="hover:text-rose-400 ml-1"><X size={12}/></button>
+                            </span>
+                        ))}
+                    </div>
+
+                    <div className="relative">
+                        <input
+                            type="text"
+                            value={tagInput}
+                            onChange={(e) => { setTagInput(e.target.value); setShowTagDropdown(true); }}
+                            onFocus={() => setShowTagDropdown(true)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleAddTag(tagInput);
+                                }
+                            }}
+                            placeholder="Type to search or create tag..."
+                            className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-slate-200 text-sm focus:outline-none focus:border-blue-500"
+                        />
+                        {showTagDropdown && tagInput.trim() && (
+                            <div className="absolute top-full mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden z-20">
+                                {filteredTags.map(t => (
+                                    <div key={t.id} onClick={() => handleAddTag(t.name)} className="px-3 py-2 text-sm text-slate-300 hover:bg-slate-700 cursor-pointer">
+                                        {t.name}
+                                    </div>
+                                ))}
+                                {!filteredTags.length && (
+                                    <div onClick={() => handleAddTag(tagInput)} className="px-3 py-2 text-sm text-blue-400 hover:bg-slate-700 cursor-pointer font-medium">
+                                        Create tag "{tagInput}" +
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex flex-col gap-2 line-horizontal mt-2">
                 <label className="text-sm font-bold text-slate-300 uppercase tracking-wider">{t("cardContentTitle")}</label>
                 <textarea
-                    autoFocus
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Dodaj więcej szczegółowych informacji do tego zadania..."
@@ -96,6 +244,17 @@ function CardModal({ t, i18n, card, token, onClose, onUpdate, socket }: Props) {
                 {t("saveAndClose")}
             </button>
             
+            {!card.isDone && !card.inProgress && (
+              <button 
+                  onClick={handleSetInProgress}
+                  disabled={isSaving} 
+                  className="flex items-center gap-2 px-5 py-2 text-sm font-medium rounded-lg transition-all shadow-lg bg-amber-500 hover:bg-amber-400 text-white shadow-amber-900/20 border border-amber-500"
+              >
+                  <Activity size={18} />
+                  {t("markAsInProgress")}
+              </button>
+            )}
+
             <button 
                 onClick={() => handleSave(!card.isDone)}
                 disabled={isSaving} 
@@ -114,4 +273,4 @@ function CardModal({ t, i18n, card, token, onClose, onUpdate, socket }: Props) {
   );
 }
 
-export default withTranslation()(CardModal)
+export default withTranslation()(CardModal);

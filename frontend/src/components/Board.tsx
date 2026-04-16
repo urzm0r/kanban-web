@@ -20,6 +20,14 @@ import { useTranslation } from "react-i18next";
 
 import UserSettings from "./UserSettings";
 
+const parseJwt = (token: string) => {
+  try {
+    return JSON.parse(atob(token.split('.')[1]));
+  } catch (e) {
+    return null;
+  }
+};
+
 let socket: Socket;
 
 interface Props {
@@ -32,26 +40,29 @@ export function Board({ token, onLogout }: Props) {
   const [activeCard, setActiveCard] = useState<Card | null>(null);
   const [activeList, setActiveList] = useState<ListType | null>(null);
   const [modalCard, setModalCard] = useState<Card | null>(null);
-  const [socketId, setSocketId] = useState<string | null>(null);
   
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListTitle, setNewListTitle] = useState("");
 
   const { t, i18n } = useTranslation();
 
-  useEffect(() => {
-    socket = io("http://localhost:3001");
+  const currentUser = parseJwt(token);
 
-    socket.on("connect", () => {
-      setSocketId(socket.id || null);
+  useEffect(() => {
+    socket = io("http://localhost:3001", {
+      auth: { token }
     });
 
-    socket.on("card:locked", ({ cardId, lockedBy }) => {
-      updateCardStatus(cardId, { lockedBy, lockedAt: new Date().toISOString() });
+    socket.on("connect", () => {
+      console.log("Connected to socket");
+    });
+
+    socket.on("card:locked", ({ cardId, lockedBy, lockedByName }) => {
+      updateCardStatus(cardId, { lockedBy, lockedByName, lockedAt: new Date().toISOString() });
     });
 
     socket.on("card:unlocked", ({ cardId }) => {
-      updateCardStatus(cardId, { lockedBy: null, lockedAt: null });
+      updateCardStatus(cardId, { lockedBy: null, lockedByName: null, lockedAt: null });
     });
 
     socket.on("card:moved", () => {
@@ -64,6 +75,61 @@ export function Board({ token, onLogout }: Props) {
 
     socket.on("board:updated", () => {
       fetchBoard();
+    });
+
+    socket.on("card:synced", (updatedCard: Card) => {
+      setBoard((prev) => {
+        if (!prev) return prev;
+        let oldListId: string | null = null;
+        let found = false;
+        
+        for (const list of prev.lists) {
+            if (list.cards.some(c => c.id === updatedCard.id)) {
+                oldListId = list.id;
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            return {
+                ...prev,
+                lists: prev.lists.map(l => l.id === updatedCard.listId ? { ...l, cards: [...l.cards, updatedCard].sort((a,b) => a.order - b.order) } : l)
+            };
+        }
+
+        if (oldListId && oldListId !== updatedCard.listId) {
+            return {
+                ...prev,
+                lists: prev.lists.map(l => {
+                    if (l.id === oldListId) return { ...l, cards: l.cards.filter(c => c.id !== updatedCard.id) };
+                    if (l.id === updatedCard.listId) return { ...l, cards: [...l.cards, updatedCard].sort((a,b) => a.order - b.order) };
+                    return l;
+                })
+            };
+        }
+
+        return {
+            ...prev,
+            lists: prev.lists.map(l => ({
+                ...l,
+                cards: l.cards.map(c => c.id === updatedCard.id ? updatedCard : c)
+            }))
+        };
+      });
+    });
+
+    socket.on("card:deleted", (cardId: string) => {
+      setBoard((prev) => {
+        if (!prev) return prev;
+        return {
+            ...prev,
+            lists: prev.lists.map(l => ({
+                ...l,
+                cards: l.cards.filter(c => c.id !== cardId)
+            }))
+        };
+      });
     });
 
     fetchBoard();
@@ -356,7 +422,7 @@ export function Board({ token, onLogout }: Props) {
                     key={list.id} 
                     list={list} 
                     cards={list.cards} 
-                    currentSocketId={socketId} 
+                    currentSocketId={currentUser?.userId} 
                     token={token} 
                     onAddCard={fetchBoard} 
                     onOpenModal={setModalCard}
@@ -369,14 +435,14 @@ export function Board({ token, onLogout }: Props) {
             <DragOverlay>
               {activeCard ? (
                 <div className="rotate-3 scale-105 transition-transform shadow-2xl shadow-[#3b82f6]/20">
-                  <CardComp card={activeCard} currentSocketId={socketId} token={token} onUpdate={() => {}} onOpenModal={() => {}} />
+                  <CardComp card={activeCard} currentSocketId={currentUser?.userId} token={token} onUpdate={() => {}} onOpenModal={() => {}} />
                 </div>
               ) : activeList ? (
                 <div className="rotate-3 scale-105 transition-transform shadow-2xl opacity-80">
                   <List 
                     list={activeList} 
                     cards={activeList.cards} 
-                    currentSocketId={socketId} 
+                    currentSocketId={currentUser?.userId} 
                     token={token} 
                     onAddCard={() => {}} 
                     boardCards={board?.lists.flatMap(l => l.cards) || []}
@@ -396,6 +462,7 @@ export function Board({ token, onLogout }: Props) {
           onClose={() => setModalCard(null)} 
           onUpdate={fetchBoard} 
           socket={socket} 
+          lists={board?.lists || []}
         />
       )}
     </div>

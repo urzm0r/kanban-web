@@ -46,6 +46,7 @@ const resources = {
             cardContentTitle: "Task description",
             cardContentHint: "Add a description for this task...",
             markAsCompleted: "Mark as completed",
+            markAsInProgress: "Mark as in progress",
             markAsToDo: "Mark as to-do",
             
             // analytics
@@ -59,6 +60,11 @@ const resources = {
             lastWeek: "Last 7 days",
             cardVelocity: "Card velocity",
             statusBreakdown: "Status breakdown",
+            workload_distribution: "Workload Distribution",
+            card_aging: "Card Aging",
+            locked_actionable: "Actionable vs Locked",
+            priority_split: "Priority Split",
+            effort_distribution: "Effort Distribution (Tags)",
         }
     },
     pl: {
@@ -105,6 +111,7 @@ const resources = {
             cardContentTitle: "Szczegółowy opis",
             cardContentHint: "Wprowadź opis dla tego zadania...",
             markAsCompleted: "Oznacz jako ukończone",
+            markAsInProgress: "Oznacz w toku",
             markAsToDo: "Oznacz jako do zrobienia",
             
             // analytics
@@ -118,6 +125,11 @@ const resources = {
             lastWeek: "Ostatni tydzień",
             cardVelocity: "Aktywność",
             statusBreakdown: "Statusy kart",
+            workload_distribution: "Obciążenie Kolumn",
+            card_aging: "Wiek Zadań",
+            locked_actionable: "Dostępne vs Zablokowane",
+            priority_split: "Podział Priorytetów",
+            effort_distribution: "Rozkład Wysiłku (Tagi)",
         }
     }
 }
