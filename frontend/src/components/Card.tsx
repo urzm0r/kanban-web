@@ -3,8 +3,11 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Lock, Pencil, Trash, X, Check } from "lucide-react";
 import type { Card as CardType } from "../types";
+import { withTranslation } from "react-i18next";
 
 interface Props {
+  t: any,
+  i18n: any,
   card: CardType;
   currentSocketId: string | null;
   token: string;
@@ -12,7 +15,7 @@ interface Props {
   onOpenModal: (card: CardType) => void;
 }
 
-export function Card({ card, currentSocketId, token, onUpdate, onOpenModal }: Props) {
+function Card({ t, i18n, card, currentSocketId, token, onUpdate, onOpenModal }: Props) {
   // Task/Card jest zablokowany jeśli ma ustalone lockedBy i to lockedBy nie jest naszym socketID
   const isLockedByOther = card.lockedBy !== null && card.lockedBy !== currentSocketId;
   const [isEditing, setIsEditing] = useState(false);
@@ -59,7 +62,7 @@ export function Card({ card, currentSocketId, token, onUpdate, onOpenModal }: Pr
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm("Czy na pewno chcesz usunąć tę kartę?")) return;
+    if (!window.confirm(t("cardDeletionConfirmation"))) return;
     try {
       await fetch(`http://localhost:3001/api/cards/${card.id}`, {
         method: "DELETE",
@@ -205,7 +208,7 @@ export function Card({ card, currentSocketId, token, onUpdate, onOpenModal }: Pr
                    </div>
                  )}
                  <span className="text-[9px] text-slate-500 font-medium">
-                     {card.completedAt ? "Completed at " + new Date(card.completedAt).toLocaleDateString() : "Edited 10m ago"}
+                     {card.completedAt ? t("cardCompleted", {date: new Date(card.completedAt).toLocaleDateString()})  : t("lastEdited", {count: "10"})} {/* TODO: hardcoded value */}
                  </span>
               </div>
           </div>
@@ -214,3 +217,5 @@ export function Card({ card, currentSocketId, token, onUpdate, onOpenModal }: Pr
     </div>
   );
 }
+
+export default withTranslation()(Card)

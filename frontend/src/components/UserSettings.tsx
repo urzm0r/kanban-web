@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react"
+import { withTranslation } from "react-i18next";
 
-export function UserSettings({board}) {
+function UserSettings({ t, i18n, board}) {
     const [settingsVisible, setSettingsVisible] = useState(false)
     const componentRef = useRef(null);
 
@@ -18,6 +19,10 @@ export function UserSettings({board}) {
         }
     }, [])
 
+    const handleSelectLanguage = e => {
+        i18n.changeLanguage(e.target.value)
+    }
+
     return (
         <div ref={componentRef}>
             {/* user icon */}
@@ -28,10 +33,10 @@ export function UserSettings({board}) {
             {/* settings menu */}
             {settingsVisible && 
             <section className="absolute top-14 right-0 p-2 bg-[#252830]">
-                <h2 className="font-semibold text-[15px] text-slate-200">User settings</h2>
+                <h2 className="font-semibold text-[15px] text-slate-200">{t("userSettings")}</h2>
                 <label className="text-[15px] text-slate-400">
-                    Language:&nbsp;
-                    <select id="user-language">
+                    {t("language")}&nbsp;
+                    <select id="user-language" onChange={handleSelectLanguage}>
                         <option value="en">English</option>
                         <option value="pl">Polski</option>
                     </select>
@@ -40,3 +45,5 @@ export function UserSettings({board}) {
         </div>
     )
 }
+
+export default withTranslation()(UserSettings);

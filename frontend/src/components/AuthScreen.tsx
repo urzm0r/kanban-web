@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { withTranslation } from "react-i18next";
 
-export function AuthScreen({ onAuthSuccess }: { onAuthSuccess: (token: string) => void }) {
+function AuthScreen({ t, i18n, onAuthSuccess }: { t:any, i18n: any, onAuthSuccess: (token: string) => void }) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,24 +33,24 @@ export function AuthScreen({ onAuthSuccess }: { onAuthSuccess: (token: string) =
             Kanban App
           </h1>
           <p className="mt-2 text-sm text-slate-400">
-            {isLogin ? "Sign in to your account" : "Create a new account"}
+            {isLogin ? t("signIn", {context: "long"}) : t("createAccount")}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300">Email</label>
+            <label className="block text-sm font-medium text-slate-300">{t("email")}</label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full mt-1 px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
-              placeholder="you@example.com"
+              placeholder="mail@example.com"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300">Password</label>
+            <label className="block text-sm font-medium text-slate-300">{t("password")}</label>
             <input
               type="password"
               required
@@ -66,20 +67,23 @@ export function AuthScreen({ onAuthSuccess }: { onAuthSuccess: (token: string) =
             type="submit"
             className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
           >
-            {isLogin ? "Sign In" : "Register"}
+            {isLogin ? t("signIn") : t("signUp")}
           </button>
         </form>
 
         <p className="text-center text-sm text-slate-400">
-          {isLogin ? "Don't have an account? " : "Already have an account? "}
+          {isLogin ? t("signUpProposal") : t("signInProposal")}
+          &nbsp;
           <button
             onClick={() => setIsLogin(!isLogin)}
             className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
           >
-            {isLogin ? "Sign up" : "Sign in"}
+            {isLogin ? t("signUp") : t("signIn")}
           </button>
         </p>
       </div>
     </div>
   );
 }
+
+export default withTranslation()(AuthScreen);

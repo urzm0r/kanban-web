@@ -1,12 +1,16 @@
 import { useState } from "react";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Card as CardComp } from "./Card";
+import CardComp from "./Card";
 import type { ListType, Card } from "../types";
 import { Plus, Pencil, Trash, X, Check } from "lucide-react";
-import { TelemetryColumn } from "./TelemetryColumn";
+import TelemetryColumn from "./TelemetryColumn";
+import { withTranslation } from "react-i18next";
+
 
 interface Props {
+  t: any,
+  i18n: any,
   list: ListType;
   cards: Card[];
   currentSocketId: string | null;
@@ -17,7 +21,7 @@ interface Props {
   allLists?: ListType[];
 }
 
-export function List({ list, cards, currentSocketId, token, onAddCard, onOpenModal, boardCards, allLists }: Props) {
+function List({ t, i18n, list, cards, currentSocketId, token, onAddCard, onOpenModal, boardCards, allLists }: Props) {
   const [isAdding, setIsAdding] = useState(false);
   const [newCardContent, setNewCardContent] = useState("");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -80,7 +84,7 @@ export function List({ list, cards, currentSocketId, token, onAddCard, onOpenMod
   };
 
   const handleDeleteList = async () => {
-    if (!window.confirm("Czy na pewno chcesz usunąć tę listę i wszystkie jej karty?")) return;
+    if (!window.confirm(t("listDeletionConfirmation"))) return;
     try {
       await fetch(`http://localhost:3001/api/lists/${list.id}`, {
         method: "DELETE",
@@ -167,7 +171,7 @@ export function List({ list, cards, currentSocketId, token, onAddCard, onOpenMod
                   onClick={() => setIsAdding(true)}
                   className="flex items-center justify-center gap-2 w-full p-2 rounded-md text-sm font-semibold text-slate-500 hover:bg-[#202127] hover:text-[#7896ee] transition-all"
                 >
-                  <Plus size={16} /> Add Card
+                  <Plus size={16} /> {t("addNewCard")}
                 </button>
               ) : (
                 <form onSubmit={handleAddCard} className="flex flex-col gap-2">
@@ -175,17 +179,17 @@ export function List({ list, cards, currentSocketId, token, onAddCard, onOpenMod
                     autoFocus
                     value={newCardContent}
                     onChange={e => setNewCardContent(e.target.value)}
-                    placeholder="Enter task title..."
+                    placeholder={t("taskTitleHint")}
                     className="w-full px-3 py-2 text-sm bg-[#111113] border border-white/10 rounded focus:outline-none focus:border-blue-500/50 text-slate-200 resize-none font-medium"
                     rows={3}
                     required
                   />
                   <div className="flex items-center gap-2">
                     <button type="submit" className="px-3 py-1.5 text-xs bg-[#7896ee]/10 hover:bg-[#7896ee]/20 text-[#7896ee] font-semibold border border-[#7896ee]/20 rounded transition-colors w-full">
-                      Add
+                      {t("addNewCardConfirm")}
                     </button>
                     <button type="button" onClick={() => setIsAdding(false)} className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200 bg-[#1e2025] hover:bg-[#25282d] border border-white/5 rounded transition-colors w-full">
-                      Cancel
+                      {t("addNewCardCancel")}
                     </button>
                   </div>
                 </form>
@@ -196,3 +200,5 @@ export function List({ list, cards, currentSocketId, token, onAddCard, onOpenMod
     </div>
   );
 }
+
+export default withTranslation()(List)

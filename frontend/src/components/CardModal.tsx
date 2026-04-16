@@ -2,7 +2,11 @@ import { useState, useEffect } from "react";
 import { X, CheckCircle } from "lucide-react";
 import type { Card as CardType } from "../types";
 
+import { withTranslation } from "react-i18next";
+
 interface Props {
+  t: any,
+  i18n: any,
   card: CardType;
   token: string;
   onClose: () => void;
@@ -10,7 +14,7 @@ interface Props {
   socket: any;
 }
 
-export function CardModal({ card, token, onClose, onUpdate, socket }: Props) {
+function CardModal({ t, i18n, card, token, onClose, onUpdate, socket }: Props) {
   const [description, setDescription] = useState(card.description || "");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -61,8 +65,8 @@ export function CardModal({ card, token, onClose, onUpdate, socket }: Props) {
             <div>
                 <h2 className="text-xl font-bold text-slate-100">{card.content}</h2>
                 <div className="flex gap-4 text-xs text-slate-400 mt-2 font-medium">
-                    <span>Utworzono: {new Date(card.createdAt).toLocaleDateString()}</span>
-                    {card.completedAt && <span className="text-emerald-400">Zakończono: {new Date(card.completedAt).toLocaleDateString()}</span>}
+                    <span>{t("cardCreated", {date: new Date(card.createdAt).toLocaleDateString()})}</span>
+                    {card.completedAt && <span className="text-emerald-400">{t("cardCompleted", {date: new Date(card.completedAt).toLocaleDateString()})}</span>}
                 </div>
             </div>
             <button onClick={() => { handleSave(); onClose(); }} className="text-slate-400 hover:text-white transition-colors bg-slate-800 p-2 rounded-lg shrink-0">
@@ -72,7 +76,7 @@ export function CardModal({ card, token, onClose, onUpdate, socket }: Props) {
 
         <div className="p-6 flex-grow overflow-y-auto flex flex-col gap-6">
             <div className="flex flex-col gap-2">
-                <label className="text-sm font-bold text-slate-300 uppercase tracking-wider">Szczegółowy opis</label>
+                <label className="text-sm font-bold text-slate-300 uppercase tracking-wider">{t("cardContentTitle")}</label>
                 <textarea
                     autoFocus
                     value={description}
@@ -89,7 +93,7 @@ export function CardModal({ card, token, onClose, onUpdate, socket }: Props) {
                 disabled={isSaving}
                 className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors border border-slate-600"
             >
-                Zapisz i Zamknij
+                {t("saveAndClose")}
             </button>
             
             <button 
@@ -101,7 +105,7 @@ export function CardModal({ card, token, onClose, onUpdate, socket }: Props) {
                         : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/20 border border-emerald-500'}`}
             >
                 <CheckCircle size={18} />
-                {card.isDone ? 'Oznacz jako nieukończone' : 'Zakończ zadanie (Done)'}
+                {card.isDone ? t("markAsToDo") : t("markAsCompleted")}
             </button>
         </div>
 
@@ -109,3 +113,5 @@ export function CardModal({ card, token, onClose, onUpdate, socket }: Props) {
     </div>
   );
 }
+
+export default withTranslation()(CardModal)

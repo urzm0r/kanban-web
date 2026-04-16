@@ -1,12 +1,15 @@
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from "recharts";
 import type { Card, ListType } from "../types";
+import { withTranslation } from "react-i18next";
 
 interface Props {
+  t: any,
+  i18n: any,
   boardCards: Card[];
   lists: ListType[];
 }
 
-export function TelemetryColumn({ boardCards, lists }: Props) {
+function TelemetryColumn({ t, i18n, boardCards, lists }: Props) {
   // 1. Tag Frequency
   const tagCounts: Record<string, number> = {};
   boardCards.forEach(c => {
@@ -15,7 +18,7 @@ export function TelemetryColumn({ boardCards, lists }: Props) {
     }
   });
   const tagPieData = Object.keys(tagCounts).map(t => ({ name: t, value: tagCounts[t] }));
-  if (tagPieData.length === 0) tagPieData.push({ name: "No Tags", value: 1 });
+  if (tagPieData.length === 0) tagPieData.push({ name: t("noTags"), value: 1 });
   const TAG_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#64748b"];
 
   // 2. Card Velocity
@@ -53,10 +56,10 @@ export function TelemetryColumn({ boardCards, lists }: Props) {
       
       {/* Tag Frequency */}
       <div className="flex flex-col gap-2">
-        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tag Frequency</h3>
+        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t("tagFrequency")}</h3>
         <div className="h-[180px] w-full relative">
           <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
-             <span className="text-xs font-semibold text-slate-300">Tags</span>
+             <span className="text-xs font-semibold text-slate-300">{t("tagsChartTitle")}</span>
           </div>
           <ResponsiveContainer width="100%" height="100%" className="pointer-events-auto">
             <PieChart>
@@ -87,7 +90,7 @@ export function TelemetryColumn({ boardCards, lists }: Props) {
       <div className="flex flex-col gap-2">
         <div className="flex justify-between items-center">
             <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Card Velocity</h3>
-            <span className="text-[9px] text-slate-500 font-medium">Last 7 days</span>
+            <span className="text-[9px] text-slate-500 font-medium">{t("lastWeek")}</span>
         </div>
         <div className="h-[140px] w-full pointer-events-auto">
           <ResponsiveContainer width="100%" height="100%">
@@ -106,11 +109,11 @@ export function TelemetryColumn({ boardCards, lists }: Props) {
 
       {/* Status Breakdown */}
       <div className="flex flex-col gap-4 mt-2">
-        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status Breakdown</h3>
+        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t("statusBreakdown")}</h3>
         
         <div className="flex flex-col gap-1">
            <div className="flex justify-between text-[11px] font-semibold text-slate-300">
-               <span>Done</span>
+               <span>{t("statusCompleted")}</span>
                <span>{donePct}%</span>
            </div>
            <div className="w-full h-1.5 bg-[#252830] rounded-full overflow-hidden">
@@ -120,7 +123,7 @@ export function TelemetryColumn({ boardCards, lists }: Props) {
 
         <div className="flex flex-col gap-1">
            <div className="flex justify-between text-[11px] font-semibold text-slate-300">
-               <span>In Progress</span>
+               <span>{t("statusInProgress")}</span>
                <span>{progPct}%</span>
            </div>
            <div className="w-full h-1.5 bg-[#252830] rounded-full overflow-hidden">
@@ -130,7 +133,7 @@ export function TelemetryColumn({ boardCards, lists }: Props) {
 
         <div className="flex flex-col gap-1">
            <div className="flex justify-between text-[11px] font-semibold text-slate-300">
-               <span>To Do</span>
+               <span>{t("statusToDo")}</span>
                <span>{todoPct}%</span>
            </div>
            <div className="w-full h-1.5 bg-[#252830] rounded-full overflow-hidden">
@@ -144,3 +147,5 @@ export function TelemetryColumn({ boardCards, lists }: Props) {
     </div>
   );
 }
+
+export default withTranslation()(TelemetryColumn)

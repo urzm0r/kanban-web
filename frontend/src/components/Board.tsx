@@ -11,13 +11,14 @@ import {
   useSensors,
   closestCorners,
 } from "@dnd-kit/core";
-import { List } from "./List";
-import { Card as CardComp } from "./Card";
-import { CardModal } from "./CardModal";
+import List from "./List";
+import CardComp from "./Card";
+import CardModal from "./CardModal";
 import type { BoardType, Card, ListType } from "../types";
 import { LogOut, Search, LayoutGrid, X, ArrowDownUp, Filter, MoreHorizontal, List as ListIcon, TrendingUp } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
-import { UserSettings } from "./UserSettings";
+import UserSettings from "./UserSettings";
 
 let socket: Socket;
 
@@ -35,6 +36,8 @@ export function Board({ token, onLogout }: Props) {
   
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListTitle, setNewListTitle] = useState("");
+
+  const { t, i18n } = useTranslation();
 
   useEffect(() => {
     socket = io("http://localhost:3001");
@@ -250,7 +253,7 @@ export function Board({ token, onLogout }: Props) {
     return (
       <div className="flex w-full h-screen items-center justify-center">
         <div className="animate-pulse text-xl text-slate-400 font-semibold tracking-wider">
-          Loading workspace...
+          {t("loadingWorkspace")}
         </div>
       </div>
     );
@@ -263,7 +266,7 @@ export function Board({ token, onLogout }: Props) {
         <div className="flex items-center gap-4">
           <div className="w-[300px] relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-            <input type="text" placeholder="Search tasks, projects, or people..." className="w-full bg-[#202127] border border-white/5 rounded-md py-1.5 pl-9 pr-4 text-sm text-slate-300 focus:outline-none focus:border-blue-500/50 transition-colors" />
+            <input type="text" placeholder={t("navbarSearch")} className="w-full bg-[#202127] border border-white/5 rounded-md py-1.5 pl-9 pr-4 text-sm text-slate-300 focus:outline-none focus:border-blue-500/50 transition-colors" />
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -275,21 +278,21 @@ export function Board({ token, onLogout }: Props) {
       {/* Header Context Action Bar */}
       <header className="px-8 pt-6 pb-4 flex flex-col gap-4 shrink-0 bg-[#111113]">
         <div className="text-xs text-slate-500 font-medium flex items-center gap-2">
-          <span><LayoutGrid className="inline w-3 h-3 mr-1"/> Dashboard</span> / <span className="text-slate-400">App</span> / <span className="text-slate-300">Sprint Board</span>
+          <span><LayoutGrid className="inline w-3 h-3 mr-1"/>{t("dashboard")}</span> / <span className="text-slate-400">App</span> / <span className="text-slate-300">Sprint Board</span>
         </div>
         <div className="flex justify-between items-end flex-wrap gap-4">
           <div className="flex flex-col gap-3">
              <h1 className="text-3xl font-bold text-white tracking-tight">{board?.title || "Sprint Board"}</h1>
              <div className="flex gap-2">
-                <span className="text-xs font-medium bg-[#1e1e24] border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 text-slate-400 hover:text-slate-200 cursor-pointer transition-colors shadow-sm tracking-wide">Year: 2026 <X size={12}/></span>
-                <span className="text-xs font-medium bg-[#1e1e24] border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 text-slate-400 hover:text-slate-200 cursor-pointer transition-colors shadow-sm tracking-wide">Task Progress: All <X size={12}/></span>
-                <span className="text-xs font-medium bg-[#1e1e24] border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 text-slate-400 hover:text-slate-200 cursor-pointer transition-colors shadow-sm tracking-wide">Status: All <X size={12}/></span>
+                <span className="text-xs font-medium bg-[#1e1e24] border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 text-slate-400 hover:text-slate-200 cursor-pointer transition-colors shadow-sm tracking-wide">{t("yearFilter", {filter: "2026"})} <X size={12}/></span>
+                <span className="text-xs font-medium bg-[#1e1e24] border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 text-slate-400 hover:text-slate-200 cursor-pointer transition-colors shadow-sm tracking-wide">{t("taskProgressFilter", {filter: "All"})} <X size={12}/></span>
+                <span className="text-xs font-medium bg-[#1e1e24] border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 text-slate-400 hover:text-slate-200 cursor-pointer transition-colors shadow-sm tracking-wide">{t("statusFilter", {filter: "All"})} <X size={12}/></span>
              </div>
           </div>
           <div className="flex gap-2 items-center">
              <button className="px-3 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-slate-200 bg-transparent border border-white/10 hover:bg-white/5 transition-all">Progress type: Project</button>
-             <button className="px-3 py-1.5 rounded-md text-xs font-semibold text-slate-300 hover:text-white bg-[#1e1e24] border border-white/10 hover:bg-white/10 transition-all flex items-center gap-2"><ArrowDownUp size={14}/> Sort</button>
-             <button className="px-3 py-1.5 rounded-md text-xs font-semibold text-slate-300 hover:text-white bg-[#1e1e24] border border-white/10 hover:bg-white/10 transition-all flex items-center gap-2"><Filter size={14}/> More filters</button>
+             <button className="px-3 py-1.5 rounded-md text-xs font-semibold text-slate-300 hover:text-white bg-[#1e1e24] border border-white/10 hover:bg-white/10 transition-all flex items-center gap-2"><ArrowDownUp size={14}/> {t("sort")}</button>
+             <button className="px-3 py-1.5 rounded-md text-xs font-semibold text-slate-300 hover:text-white bg-[#1e1e24] border border-white/10 hover:bg-white/10 transition-all flex items-center gap-2"><Filter size={14}/> {t("moreFilters")}</button>
              <button className="px-3 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-slate-200 bg-transparent border border-white/10 hover:bg-white/5 transition-all">Send Feedback</button>
              <button className="px-2 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-slate-200 bg-transparent border border-white/10 hover:bg-white/5 transition-all"><MoreHorizontal size={16}/></button>
           </div>
@@ -300,11 +303,11 @@ export function Board({ token, onLogout }: Props) {
       <main className="flex-1 flex overflow-hidden">
         {/* Left Fixed Palette */}
         <aside className="w-[300px] shrink-0 border-r border-[#202127] p-6 flex flex-col gap-4 overflow-y-auto bg-[#17171a]">
-          <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center mt-2 mb-2">Add New Column</h3>
+          <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center mt-2 mb-2">{t("addNewColumn")}</h3>
           
           {!isAddingList ? (
             <button onClick={() => setIsAddingList(true)} className="flex items-center justify-center gap-2 w-full py-3 bg-[#1e2333]/80 hover:bg-[#252b40] border border-[#2e3752] rounded-md text-[#7896ee] transition-all font-medium text-sm shadow-sm group">
-                <ListIcon size={16} className="text-[#6082e6] group-hover:text-[#7896ee]"/> Task List
+                <ListIcon size={16} className="text-[#6082e6] group-hover:text-[#7896ee]"/> {t("taskList")}
             </button>
           ) : (
             <div className="bg-[#1e1e24] rounded-lg p-3 border border-[#2a2b36] shadow-lg mb-2">
@@ -319,10 +322,10 @@ export function Board({ token, onLogout }: Props) {
                   />
                   <div className="flex items-center gap-2 pt-1">
                     <button type="submit" className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded transition-colors w-full">
-                      Add
+                      {t("addNewCardConfirm")}
                     </button>
                     <button type="button" onClick={() => setIsAddingList(false)} className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors w-full bg-[#111113] rounded border border-white/10 hover:border-white/20">
-                      Cancel
+                      {t("addNewCardCancel")}
                     </button>
                   </div>
                 </form>
@@ -330,11 +333,11 @@ export function Board({ token, onLogout }: Props) {
           )}
 
           <button onClick={handleCreateTelemetry} className="flex items-center justify-center gap-2 w-full py-3 bg-[#162728]/80 hover:bg-[#1a2f30] border border-[#234041] rounded-md text-[#4fd1c5] transition-all font-medium text-sm shadow-sm group">
-              <TrendingUp size={16} className="text-[#3bbaa8] group-hover:text-[#4fd1c5]"/> Analytics List
+              <TrendingUp size={16} className="text-[#3bbaa8] group-hover:text-[#4fd1c5]"/> {t("analyticsList")}
           </button>
           
           <div className="mt-8 flex justify-center">
-             <button onClick={onLogout} className="text-xs font-semibold text-slate-500 flex items-center gap-2 hover:text-rose-400 transition-colors"><LogOut size={14}/> Sign Out</button>
+             <button onClick={onLogout} className="text-xs font-semibold text-slate-500 flex items-center gap-2 hover:text-rose-400 transition-colors"><LogOut size={14}/> {t("signOut")}</button>
           </div>
         </aside>
 

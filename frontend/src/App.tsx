@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Board } from "./components/Board";
-import { AuthScreen } from "./components/AuthScreen";
+import AuthScreen from "./components/AuthScreen";
 
 function App() {
   const [token, setToken] = useState<string | null>(null);
