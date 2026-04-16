@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
@@ -24,27 +25,22 @@ const io = new Server(httpServer, {
 app.use(cors());
 app.use(express.json());
 
-
 // TODO: notify clients after each change
 
 // Return the entire board ( with every list and task )
 app.get('/boards/:id', boardExists(true), async (req, res) => {
-    try {
-        const boards = await prisma.board.findMany({
-            where: { id: req.boardId },
-            include: {
-                columns: {
-                    include: {
-                        tasks: true,
-                    },
-                    orderBy: { order: 'asc' },
+    const boards = await prisma.board.findMany({
+        where: { id: req.boardId },
+        include: {
+            columns: {
+                include: {
+                    tasks: true,
                 },
+                orderBy: { order: 'asc' },
             },
-        });
-        res.json(boards);
-    } catch (error) {
-        res.status(500).json({ error: "Błąd podczas pobierania tablic" });
-    }
+        },
+    });
+    res.json(boards);
 });
 
 // Process card lock requests
@@ -65,30 +61,40 @@ app.post("/cards/:id/lock", authorize, cardExists(true), async (req, res) => {
 
     // TODO: notify clients about lock
 
-    console.log("kotnuine")
-
     res.status(200).send("Awaiting PUT /cards/:id request...") 
+})
+
+const cardSchema = zod.object({
+    content: zod.string(),
+    columnId: zod.optional(zod.string())
 })
 
 // Create/Edit a card
 app.put("/cards/:id", authorize, cardExists(), async (req, res) => {
     if (req.body === undefined || !("content" in req.body)) {
-        res.status(400).send("Incomplete request body.")
+        res.status(400).send("Incomplete request body. Please provide the content attribute.")
         return
     }
 
+    const cardData = cardSchema.parse({
+        content: req.body["content"],
+        columnId: req.body["columnId"]
+    })
+
     // Card creation
     if (!req.cardExists) {
-        if ("columnId" in req.body) {
-            res.status(400).send("Incomplete request body.")
+        if (cardData.columnId === undefined) {
+            res.status(400).send("Incomplete request body. Please provide the columnId attribute.")
+            console.log(req.body)
             return
         }
+
         await prisma.task.create({
             data: {
                 id: req.cardId,
                 order: 0,
-                content: req.body["content"],
-                columnId: req.body["columnId"]
+                content: cardData.content,
+                columnId: cardData.columnId
             }
         })
         res.status(201).send()
@@ -105,7 +111,7 @@ app.put("/cards/:id", authorize, cardExists(), async (req, res) => {
     await prisma.task.update({
         where: { id: req.cardId },
         data: { 
-            content: req.body["content"],
+            content: cardData.content,
             lockedBy: null    
         }
 
@@ -119,31 +125,24 @@ app.put("/cards/:id", authorize, cardExists(), async (req, res) => {
 
 // Add tag/move card to another column
 app.patch("/cards/:id", cardExists(true), async (req, res) => {
-    try {
-        if (req.body["completed"] !== undefined)
-        {
-            await prisma.task.update({
-                where: { id: req.cardId },
-                data: { completed: zod.boolean().parse(req.body["completed"]) }
-            });
-        }
 
-        if (req.body["columnId"] !== undefined)
-        {
-            await prisma.task.update({
-                where: { id: req.cardId },
-                data: { columnId: zod.string().parse(req.body["columnId"]) }
-            });
-        }
-
-        res.status(200).send()
-    } catch (error) {
-        if (error instanceof zod.ZodError) {
-            res.status(400).send(error.issues)
-            return
-        }
-        res.status(500).send()
+    if (req.body["completed"] !== undefined)
+    {
+        await prisma.task.update({
+            where: { id: req.cardId },
+            data: { completed: zod.boolean("\"completed\" must be boolean").parse(req.body["completed"]) }
+        });
     }
+
+    if (req.body["columnId"] !== undefined)
+    {
+        await prisma.task.update({
+            where: { id: req.cardId },
+            data: { columnId: zod.string("\"columnId\" attribute must be a string").parse(req.body["columnId"]) }
+        });
+    }
+
+    res.status(200).send()
 })
 
 // Delete card
@@ -162,17 +161,16 @@ app.delete("/cards/:id", authorize, cardExists(true), async (req, res) => {
 
 
 // Add tag
+const tagSchema = zod.string("\"title\" attribute must exist and be a string")
+
 app.post("/cards/:id/tag", cardExists(true), async (req, res) => {
-    if (req.body === undefined || !("title" in req.body)) {
-        res.status(400).send("Incomplete request body.")
-        return
-    }
+    const title = tagSchema.parse(req.body["title"])
 
     // find or create
     const tag = await prisma.tag.upsert({
-        where: { title: req.body["title"] },
+        where: { title },
         update: {},
-        create: { title: req.body["title"] }
+        create: { title }
     })
 
     await prisma.task.update({
@@ -189,16 +187,13 @@ app.post("/cards/:id/tag", cardExists(true), async (req, res) => {
 
 // Delete tag
 app.delete("/cards/:id/tag", cardExists(true), async (req, res) => {
-    if (req.body === undefined || !("title" in req.body)) {
-        res.status(400).send("Incomplete request body.")
-        return
-    }
+    const title = tagSchema.parse(req.body["title"])
 
     await prisma.task.update({
         where: { id: req.cardId },
         data: {
             tags: {
-                disconnect: [{ title: req.body["title"] }]
+                disconnect: [{ title: title }]
             }
         }
     })
@@ -208,17 +203,22 @@ app.delete("/cards/:id/tag", cardExists(true), async (req, res) => {
 
 // Create list
 app.post("/lists/:id", listExists(false), async (req, res) => {
-    if (req.body === undefined || !("title" in req.body && "boardId" in req.body)) {
-        res.status(400).send("Incomplete request body.")
-        return
-    }
+    const listSchema = zod.object({
+        title: zod.string(),
+        boardId: zod.string()
+    })
+
+    const listData = listSchema.parse({
+        title: req.body["title"],
+        boardId: req.body["boardId"]
+    })
 
     await prisma.column.create({
         data: {
             id: req.listId,
-            title: req.body["title"],
+            title: listData.title,
             order: 0, // ? TODO
-            boardId: req.body["boardId"]
+            boardId: listData.boardId
         }
     })
 
@@ -236,15 +236,10 @@ app.delete("/lists/:id", listExists(true), async (req, res) => {
 
 // Create board
 app.post("/boards/:id", boardExists(false), async (req, res) => {
-    if (req.body === undefined || !("title" in req.body)) {
-        res.status(400).send("Incomplete request body.")
-        return
-    }
-
     await prisma.board.create({
         data: {
             id: req.boardId,
-            title: req.body["title"]
+            title: zod.string("\"title\" attribute must exist and be a string").parse(req.body["title"])
         }
     })
 
@@ -258,6 +253,15 @@ app.delete("/boards/:id", boardExists(true), async (req, res) => {
     })
 
     res.status(204).send()
+})
+
+// Error handling
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+    if (err instanceof zod.ZodError) {
+        res.status(400).send(err.issues)
+        return
+    }
+    res.status(500).send(err.message)
 })
 
 
