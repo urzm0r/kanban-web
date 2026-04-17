@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import { arrayMove, SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import {
@@ -43,6 +43,7 @@ export function Board({ token, onLogout }: Props) {
   
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListTitle, setNewListTitle] = useState("");
+  const initialFetchOccurred = useRef(false);
 
   const { t, i18n } = useTranslation();
 
@@ -65,16 +66,57 @@ export function Board({ token, onLogout }: Props) {
       updateCardStatus(cardId, { lockedBy: null, lockedByName: null, lockedAt: null });
     });
 
-    socket.on("card:moved", () => {
-      fetchBoard();
+    socket.on("list:created", (newList: ListType) => {
+      setBoard((prev) => {
+        if (!prev) return prev;
+        if (prev.lists.some(l => l.id === newList.id)) return prev;
+        return { ...prev, lists: [...prev.lists, newList].sort((a,b) => a.order - b.order) };
+      });
     });
 
-    socket.on("card:unlocked_all", () => {
-      fetchBoard();
+    socket.on("list:updated", (updatedList: ListType) => {
+      setBoard((prev) => {
+        if (!prev) return prev;
+        return { ...prev, lists: prev.lists.map(l => l.id === updatedList.id ? updatedList : l) };
+      });
     });
 
-    socket.on("board:updated", () => {
-      fetchBoard();
+    socket.on("list:deleted", (listId: string) => {
+      setBoard((prev) => {
+        if (!prev) return prev;
+        return { ...prev, lists: prev.lists.filter(l => l.id !== listId) };
+      });
+    });
+
+    socket.on("cards:reordered", (items: any[]) => {
+      setBoard((prev) => {
+        if (!prev) return prev;
+        const newLists = [...prev.lists];
+        items.forEach((item: any) => {
+          newLists.forEach((list, lIdx) => {
+            const cardIdx = list.cards.findIndex(c => c.id === item.id);
+            if (cardIdx !== -1) {
+              const [card] = newLists[lIdx].cards.splice(cardIdx, 1);
+              card.listId = item.listId;
+              card.order = item.order;
+              const destList = newLists.find(l => l.id === item.listId);
+              if (destList) destList.cards.push(card);
+            }
+          });
+        });
+        return { ...prev, lists: newLists.map(l => ({ ...l, cards: [...l.cards].sort((a,b) => a.order - b.order) })) };
+      });
+    });
+
+    socket.on("lists:reordered", (items: any[]) => {
+      setBoard((prev) => {
+        if (!prev) return prev;
+        const updatedLists = prev.lists.map(l => {
+          const item = items.find(i => i.id === l.id);
+          return item ? { ...l, order: item.order } : l;
+        }).sort((a, b) => a.order - b.order);
+        return { ...prev, lists: updatedLists };
+      });
     });
 
     socket.on("card:synced", (updatedCard: Card) => {
@@ -132,7 +174,10 @@ export function Board({ token, onLogout }: Props) {
       });
     });
 
-    fetchBoard();
+    if (!initialFetchOccurred.current) {
+        fetchBoard();
+        initialFetchOccurred.current = true;
+    }
 
     return () => {
       socket.disconnect();
@@ -141,13 +186,19 @@ export function Board({ token, onLogout }: Props) {
 
   const fetchBoard = async () => {
     try {
-      const res = await fetch("http://localhost:3001/boards", {
+      const boardsRes = await fetch("http://localhost:3001/boards", {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.status === 401) return onLogout();
-      const data = await res.json();
-      if (data && data.length > 0) {
-        setBoard(data[0]);
+      if (boardsRes.status === 401) return onLogout();
+      const boardsData = await boardsRes.json();
+      
+      if (boardsData && boardsData.length > 0) {
+        const boardId = boardsData[0].id;
+        const res = await fetch(`http://localhost:3001/api/boards/${boardId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const fullBoard = await res.json();
+        setBoard(fullBoard);
       }
     } catch (e) {
       console.error("Fetch board error:", e);
@@ -180,7 +231,6 @@ export function Board({ token, onLogout }: Props) {
       });
       setNewListTitle("");
       setIsAddingList(false);
-      fetchBoard();
     } catch (err) {
       console.error("Failed to add list", err);
     }
@@ -197,7 +247,7 @@ export function Board({ token, onLogout }: Props) {
         },
         body: JSON.stringify({ title: "Analytics Overview", boardId: board.id, type: "TELEMETRY" }),
       });
-      fetchBoard();
+      // No manual fetchBoard() here - socket handles it
     } catch (err) {
       console.error(err);
     }
@@ -424,7 +474,7 @@ export function Board({ token, onLogout }: Props) {
                     cards={list.cards} 
                     currentSocketId={currentUser?.userId} 
                     token={token} 
-                    onAddCard={fetchBoard} 
+                    onAddCard={() => {}} 
                     onOpenModal={setModalCard}
                     boardCards={board?.lists.flatMap(l => l.cards) || []}
                     allLists={board?.lists || []}
@@ -460,7 +510,7 @@ export function Board({ token, onLogout }: Props) {
           card={modalCard} 
           token={token} 
           onClose={() => setModalCard(null)} 
-          onUpdate={fetchBoard} 
+          onUpdate={() => {}} 
           socket={socket} 
           lists={board?.lists || []}
         />
