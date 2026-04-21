@@ -113,14 +113,18 @@ function Card({ t, i18n, card, currentSocketId, token, onUpdate, onOpenModal, ac
   const dateObj = card.createdAt ? new Date(card.createdAt) : new Date();
   const dateTag = `[${String(dateObj.getDate()).padStart(2, '0')}.${String(dateObj.getMonth() + 1).padStart(2, '0')} - ${dateObj.toLocaleDateString("en-US", { weekday: "short" })}]`;
 
+  const handleClick = () => !isLockedByOther && !isEditing && onOpenModal(card)
+
   return (
-    <button
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...(isLockedByOther || isEditing ? {} : listeners)}
-      onClick={() => !isLockedByOther && !isEditing && onOpenModal(card)}
-      aria-label={t("screenReaderEditCard")}
+    <div
+    ref={setNodeRef}
+    style={style}
+    {...attributes}
+    {...(isLockedByOther || isEditing ? {} : listeners)}
+    onClick={handleClick}
+    onKeyDown={e => {if (e.key === "Enter") handleClick()}}
+    aria-label={t("screenReaderEditCard")}
+    tabIndex={0}
       className={`relative group flex flex-col p-4 rounded-lg shadow-sm border 
         ${isLockedByOther ? 'bg-[#1e1f24] border-slate-800 opacity-60 cursor-not-allowed' : card.isDone ? 'bg-[#15161a] border-[#22242b] opacity-80' : card.inProgress ? 'bg-[#291f13] border-[#a36214] opacity-90 cursor-grab' : 'bg-[#1e1f24] border-[#2a2d36] hover:border-[#3b82f6]/50 cursor-grab active:cursor-grabbing'}
         transition-all duration-200`}
@@ -236,7 +240,7 @@ function Card({ t, i18n, card, currentSocketId, token, onUpdate, onOpenModal, ac
           </div>
         </>
       )}
-    </button>
+    </div>
   );
 }
 
