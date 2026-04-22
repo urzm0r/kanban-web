@@ -14,6 +14,7 @@ const pl = {
         // auth screen
         email: "Adres mejlowy",
         password: "Hasło",
+        password_signUp: "Hasło ( co najmniej 6 znaków )",
         createAccount: "Stwórz nowe konto",
         signInProposal: "Masz już konto?",
         signUpProposal: "Nie masz konta?",

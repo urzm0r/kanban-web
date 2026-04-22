@@ -64,7 +64,7 @@ function AuthScreen({ t, i18n, onAuthSuccess }: { t:any, i18n: any, onAuthSucces
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-slate-300">{t("password")}</label>
+            <label className="block text-sm font-medium text-slate-300">{t("password", { context: (isLogin ? null : "signUp")} )}</label>
             <input
               type="password"
               required

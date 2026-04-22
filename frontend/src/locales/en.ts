@@ -14,6 +14,7 @@ const en = {
         // auth screen
         email: "Email",
         password: "Password",
+        password_signUp: "Password ( at least 6 characters )",
         createAccount: "Create a new account",
         signInProposal: "Already have an account?",
         signUpProposal: "Don't have an account?",
