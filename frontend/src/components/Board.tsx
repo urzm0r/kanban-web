@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
+import { useParams, Link } from "react-router-dom";
 import { arrayMove, SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import {
   DndContext,
@@ -14,21 +15,13 @@ import {
 import List from "./List";
 import CardComp from "./Card";
 import CardModal from "./CardModal";
+import ShareModal from "./ShareModal";
 import type { BoardActions, BoardType, Card, ListType } from "../types";
-import { LogOut, Search, LayoutGrid, X, ArrowDownUp, Filter, MoreHorizontal, List as ListIcon, TrendingUp } from "lucide-react";
+import { LogOut, Search, LayoutGrid, X, ArrowDownUp, Filter, MoreHorizontal, List as ListIcon, TrendingUp, UserPlus } from "lucide-react";
 import { useTranslation } from "react-i18next";
-
 import UserSettings from "./UserSettings";
-
-const parseJwt = (token: string) => {
-  try {
-    return JSON.parse(atob(token.split('.')[1]));
-  } catch (e) {
-    return null;
-  }
-};
-
-let socket: Socket;
+import { parseJwt } from "../lib/jwt";
+import { API_URL } from "../lib/api";
 
 interface Props {
   token: string;
@@ -36,26 +29,31 @@ interface Props {
 }
 
 export function Board({ token, onLogout }: Props) {
+  const { boardId } = useParams();
   const [board, setBoard] = useState<BoardType | null>(null);
   const [activeCard, setActiveCard] = useState<Card | null>(null);
   const [activeList, setActiveList] = useState<ListType | null>(null);
   const [modalCard, setModalCard] = useState<Card | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
   
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListTitle, setNewListTitle] = useState("");
   const initialFetchOccurred = useRef(false);
+  const socketRef = useRef<Socket | null>(null);
 
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
 
   const currentUser = parseJwt(token);
 
   useEffect(() => {
-    socket = io("http://localhost:3001", {
+    const socket = io(API_URL, {
       auth: { token }
     });
+    socketRef.current = socket;
 
     socket.on("connect", () => {
       console.log("Connected to socket");
+      if (boardId) socket.emit("join_board", boardId);
     });
 
     socket.on("card:locked", ({ cardId, lockedBy, lockedByName }) => {
@@ -174,34 +172,27 @@ export function Board({ token, onLogout }: Props) {
       });
     });
 
-    if (!initialFetchOccurred.current) {
-        fetchBoard();
+    if (!initialFetchOccurred.current && boardId) {
+        fetchBoard(boardId);
         initialFetchOccurred.current = true;
     }
 
     return () => {
       socket.disconnect();
     };
-  }, [token]);
+  }, [token, boardId]);
 
-  const fetchBoard = async () => {
+  const fetchBoard = async (id: string) => {
     try {
-      const boardsRes = await fetch("http://localhost:3001/api/boards", {
+      const res = await fetch(`${API_URL}/api/boards/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (boardsRes.status === 401) return onLogout();
-      const boardsData = await boardsRes.json();
-      
-      if (boardsData && boardsData.length > 0) {
-        const boardId = boardsData[0].id;
-        const res = await fetch(`http://localhost:3001/api/boards/${boardId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const fullBoard = await res.json();
-        setBoard(fullBoard);
-      }
-    } catch (e) {
-      console.error("Fetch board error:", e);
+      if (res.status === 401) return onLogout();
+      if (!res.ok) throw new Error("Board not found");
+      const fullBoard = await res.json();
+      setBoard(fullBoard);
+    } catch {
+      console.error("Fetch board error");
     }
   };
 
@@ -221,7 +212,7 @@ export function Board({ token, onLogout }: Props) {
     if (!newListTitle.trim() || !board) return;
     
     try {
-      await fetch("http://localhost:3001/api/lists", {
+      await fetch(`${API_URL}/api/lists`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -231,15 +222,15 @@ export function Board({ token, onLogout }: Props) {
       });
       setNewListTitle("");
       setIsAddingList(false);
-    } catch (err) {
-      console.error("Failed to add list", err);
+    } catch {
+      console.error("Failed to add list");
     }
   };
 
   const handleCreateTelemetry = async () => {
     if (!board) return;
     try {
-      await fetch("http://localhost:3001/api/lists", {
+      await fetch(`${API_URL}/api/lists`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -248,8 +239,8 @@ export function Board({ token, onLogout }: Props) {
         body: JSON.stringify({ title: "Analytics Overview", boardId: board.id, type: "TELEMETRY" }),
       });
       // No manual fetchBoard() here - socket handles it
-    } catch (err) {
-      console.error(err);
+    } catch {
+      console.error("Failed to create telemetry");
     }
   };
 
@@ -263,7 +254,7 @@ export function Board({ token, onLogout }: Props) {
     const { active } = e;
     if (active.data.current?.type === "Card") {
       setActiveCard(active.data.current.card);
-      socket.emit("card:locked", active.id);
+      socketRef.current?.emit("card:locked", { cardId: active.id, boardId });
     } else if (active.data.current?.type === "List") {
       setActiveList(active.data.current.list);
     }
@@ -275,7 +266,7 @@ export function Board({ token, onLogout }: Props) {
 
     if (!over || !board) {
       if (active.data.current?.type === "Card") {
-        socket.emit("card:unlocked", active.id);
+        socketRef.current?.emit("card:unlocked", { cardId: active.id, boardId });
       }
       setActiveList(null);
       return;
@@ -290,7 +281,7 @@ export function Board({ token, onLogout }: Props) {
         const newIndex = board.lists.findIndex(l => l.id === overId);
         const updatedLists = arrayMove(board.lists, oldIndex, newIndex).map((l, i) => ({ ...l, order: i }));
         setBoard({ ...board, lists: updatedLists });
-        socket.emit("lists:reordered", updatedLists.map(l => ({ id: l.id, order: l.order })));
+        socketRef.current?.emit("lists:reordered", { items: updatedLists.map(l => ({ id: l.id, order: l.order })), boardId });
       }
       setActiveList(null);
       return;
@@ -300,11 +291,10 @@ export function Board({ token, onLogout }: Props) {
     const overId = String(over.id);
 
     if (activeId === overId) {
-      socket.emit("card:unlocked", activeId);
+      socketRef.current?.emit("card:unlocked", { cardId: activeId, boardId });
       return;
     }
 
-    const activeCardData = active.data.current?.card as Card;
     const overDataType = over.data.current?.type;
 
     let destListIndex = -1;
@@ -326,20 +316,22 @@ export function Board({ token, onLogout }: Props) {
       if (newIndex === -1) newIndex = destList.cards.length;
     }
 
-    moveCard(activeCard, destListIndex, newIndex);
+    if (activeCard) moveCard(activeCard, destListIndex, newIndex);
   };
 
-  const moveListByOffset = (listId: String, offset: number) => {
+  const moveListByOffset = (listId: string, offset: number) => {
+    if (!board) return;
     const oldIndex = board.lists.findIndex(l => l.id === listId);
     const newIndex = oldIndex + offset;
     if (newIndex < 0 || newIndex >= board.lists.length) return;
 
     const updatedLists = arrayMove(board.lists, oldIndex, newIndex).map((l, i) => ({ ...l, order: i }));
-    setBoard({ ...board, lists: updatedLists });
-    socket.emit("lists:reordered", updatedLists.map(l => ({ id: l.id, order: l.order })));
+    setBoard({ ...board, lists: updatedLists } as BoardType);
+    socketRef.current?.emit("lists:reordered", { items: updatedLists.map(l => ({ id: l.id, order: l.order })), boardId });
   }
 
   const moveCardByOffset = (card: Card, listOffset: number, cardOffset: number) => {
+    if (!board) return;
     const sourceListIndex = board.lists.findIndex(l => l.id === card.listId);
 
     let destListIndex: number = sourceListIndex;
@@ -367,11 +359,12 @@ export function Board({ token, onLogout }: Props) {
   }
 
   const moveCard = (card: Card, destListIndex: number, destCardIndex: number) => {
+    if (!board) return;
     const cardId = card.id;
     const sourceListIndex = board.lists.findIndex(l => l.id === card.listId);
 
     if (sourceListIndex === -1 || destListIndex === -1 || board.lists[destListIndex].type !== "DEFAULT") {
-      socket.emit("card:unlocked", cardId);
+      socketRef.current?.emit("card:unlocked", { cardId, boardId });
       return;
     }
 
@@ -407,15 +400,15 @@ export function Board({ token, onLogout }: Props) {
       ];
     }
 
-    setBoard(p);
+    setBoard(p as BoardType);
 
-    socket.emit("cards:reordered", itemsToUpdate);
+    socketRef.current?.emit("cards:reordered", { items: itemsToUpdate, boardId });
   }
 
   if (!board) {
     return (
-      <div className="flex w-full h-screen items-center justify-center">
-        <div className="animate-pulse text-xl text-slate-400 font-semibold tracking-wider">
+      <div className="flex w-full h-screen items-center justify-center bg-[#111113]">
+        <div className="animate-pulse text-xl text-slate-500 font-bold uppercase tracking-widest">
           {t("loadingWorkspace")}
         </div>
       </div>
@@ -432,8 +425,21 @@ export function Board({ token, onLogout }: Props) {
             <input type="text" placeholder={t("navbarSearch")} className="w-full bg-[#202127] border border-white/5 rounded-md py-1.5 pl-9 pr-4 text-sm text-slate-300 focus:outline-none focus:border-blue-500/50 transition-colors" />
           </div>
         </div>
-        <div className="flex items-center gap-4">
-           <UserSettings board={board} />
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3 pr-4 border-r border-white/10">
+            <span className="text-sm font-semibold text-slate-300">
+              {currentUser?.name || "User"}
+            </span>
+            <UserSettings board={board} />
+          </div>
+
+          <button 
+            onClick={onLogout}
+            className="flex items-center gap-2 px-3 py-1.5 bg-[#1e1e24] border border-white/5 hover:bg-white/5 rounded-md text-sm text-slate-400 hover:text-slate-200 transition-all font-medium"
+          >
+            <LogOut className="w-4 h-4" />
+            {t("signOut")}
+          </button>
         </div>
         
       </nav>
@@ -441,11 +447,16 @@ export function Board({ token, onLogout }: Props) {
       {/* Header Context Action Bar */}
       <header className="px-8 pt-6 pb-4 flex flex-col gap-4 shrink-0 bg-[#111113]">
         <div className="text-xs text-slate-500 font-medium flex items-center gap-2">
-          <span><LayoutGrid className="inline w-3 h-3 mr-1"/>{t("dashboard")}</span> / <span className="text-slate-400">App</span> / <span className="text-slate-300">Sprint Board</span>
+          <Link to="/dashboard" className="hover:text-blue-400 transition-colors flex items-center gap-1">
+            <LayoutGrid className="w-3 h-3"/>
+            {t("dashboard")}
+          </Link> 
+          <span>/</span>
+          <span className="text-slate-300">{board?.title}</span>
         </div>
         <div className="flex justify-between items-end flex-wrap gap-4">
           <div className="flex flex-col gap-3">
-             <h1 className="text-3xl font-bold text-white tracking-tight">{board?.title || "Sprint Board"}</h1>
+             <h1 className="text-3xl font-bold text-white tracking-tight">{board?.title}</h1>
              <div className="flex gap-2">
                 <span className="text-xs font-medium bg-[#1e1e24] border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 text-slate-400 hover:text-slate-200 cursor-pointer transition-colors shadow-sm tracking-wide">{t("yearFilter", {filter: "2026"})} <X size={12}/></span>
                 <span className="text-xs font-medium bg-[#1e1e24] border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 text-slate-400 hover:text-slate-200 cursor-pointer transition-colors shadow-sm tracking-wide">{t("taskProgressFilter", {filter: "All"})} <X size={12}/></span>
@@ -453,10 +464,16 @@ export function Board({ token, onLogout }: Props) {
              </div>
           </div>
           <div className="flex gap-2 items-center">
-             <button className="px-3 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-slate-200 bg-transparent border border-white/10 hover:bg-white/5 transition-all">Progress type: Project</button>
              <button className="px-3 py-1.5 rounded-md text-xs font-semibold text-slate-300 hover:text-white bg-[#1e1e24] border border-white/10 hover:bg-white/10 transition-all flex items-center gap-2"><ArrowDownUp size={14}/> {t("sort")}</button>
              <button className="px-3 py-1.5 rounded-md text-xs font-semibold text-slate-300 hover:text-white bg-[#1e1e24] border border-white/10 hover:bg-white/10 transition-all flex items-center gap-2"><Filter size={14}/> {t("moreFilters")}</button>
-             <button className="px-3 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-slate-200 bg-transparent border border-white/10 hover:bg-white/5 transition-all">Send Feedback</button>
+             {board.ownerId === currentUser?.userId && (
+               <button 
+                  onClick={() => setShowShareModal(true)}
+                  className="px-3 py-1.5 rounded-md text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 transition-all flex items-center gap-2 shadow-lg shadow-blue-900/20"
+               >
+                  <UserPlus size={14}/> {t("share")}
+               </button>
+             )}
              <button className="px-2 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-slate-200 bg-transparent border border-white/10 hover:bg-white/5 transition-all"><MoreHorizontal size={16}/></button>
           </div>
         </div>
@@ -560,8 +577,16 @@ export function Board({ token, onLogout }: Props) {
           token={token} 
           onClose={() => setModalCard(null)} 
           onUpdate={() => {}} 
-          socket={socket} 
-          lists={board?.lists || []}
+          socket={socketRef.current} 
+          boardId={boardId || ""}
+        />
+      )}
+
+      {showShareModal && board && (
+        <ShareModal 
+            boardId={board.id} 
+            token={token} 
+            onClose={() => setShowShareModal(false)} 
         />
       )}
     </div>

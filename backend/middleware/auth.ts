@@ -2,7 +2,11 @@ import { type Response, type NextFunction } from 'express';
 import { type AuthRequest } from '../types.js'
 import jwt from 'jsonwebtoken'
 
-const JWT_SECRET = (process.env["JWT_SECRET"] as string) || "super-secret-key-123";
+const JWT_SECRET = process.env["JWT_SECRET"];
+if (!JWT_SECRET) {
+    console.error("FATAL: JWT_SECRET environment variable is not set!");
+    process.exit(1);
+}
 
 const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
     const header = req.headers.authorization;

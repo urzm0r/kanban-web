@@ -1,21 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 import { X, CheckCircle, Activity, Tag as TagIcon, BarChart2 } from "lucide-react";
-import type { Card as CardType, ListType, TagType } from "../types";
-
-import { withTranslation } from "react-i18next";
+import type { Card as CardType, TagType } from "../types";
+import { useTranslation } from "react-i18next";
+import { API_URL } from "../lib/api";
 
 interface Props {
-  t: any;
-  i18n: any;
   card: CardType;
   token: string;
   onClose: () => void;
   onUpdate: () => void;
   socket: any;
-  lists: ListType[];
+  boardId: string;
 }
 
-function CardModal({ t, i18n, card, token, onClose, onUpdate, socket, lists }: Props) {
+export default function CardModal({ card, token, onClose, onUpdate, socket, boardId }: Props) {
   const [description, setDescription] = useState(card.description || "");
   const [priority, setPriority] = useState(card.priority || "Medium");
   const [tags, setTags] = useState<TagType[]>(card.tags || []);
@@ -26,18 +24,20 @@ function CardModal({ t, i18n, card, token, onClose, onUpdate, socket, lists }: P
   
   const [isSaving, setIsSaving] = useState(false);
   const tagDropRef = useRef<HTMLDivElement>(null);
-  const cardDescriptionRef = useRef(null)
+  const cardDescriptionRef = useRef<HTMLTextAreaElement>(null)
+
+  const { t } = useTranslation();
 
   useEffect(() => {
     // Lock the card for editing for safety
-    if (!card.lockedBy) socket.emit("card:locked", card.id);
+    if (!card.lockedBy) socket?.emit("card:locked", { cardId: card.id, boardId });
     return () => {
-      socket.emit("card:unlocked", card.id);
+      socket?.emit("card:unlocked", { cardId: card.id, boardId });
     };
-  }, [card.id, card.lockedBy, socket]);
+  }, [card.id, card.lockedBy, socket, boardId]);
 
   useEffect(() => {
-    fetch("http://localhost:3001/api/tags", {
+    fetch(`${API_URL}/api/tags`, {
         headers: { Authorization: `Bearer ${token}` }
     }).then(r => r.json()).then(data => setAvailableTags(data || [])).catch(console.error);
   }, [token]);
@@ -53,7 +53,7 @@ function CardModal({ t, i18n, card, token, onClose, onUpdate, socket, lists }: P
   }, []);
 
   useEffect(() => {
-    cardDescriptionRef?.current.focus()
+    cardDescriptionRef.current?.focus()
   }, [])
 
   const handleAddTag = async (tagName: string) => {
@@ -70,7 +70,7 @@ function CardModal({ t, i18n, card, token, onClose, onUpdate, socket, lists }: P
       
       // Create new tag
       try {
-          const res = await fetch("http://localhost:3001/api/tags", {
+          const res = await fetch(`${API_URL}/api/tags`, {
               method: "POST",
               headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
               body: JSON.stringify({ name })
@@ -99,7 +99,7 @@ function CardModal({ t, i18n, card, token, onClose, onUpdate, socket, lists }: P
         updates.inProgress = false;
     }
     try {
-      await fetch(`http://localhost:3001/api/cards/${card.id}`, {
+      await fetch(`${API_URL}/api/cards/${card.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -116,9 +116,9 @@ function CardModal({ t, i18n, card, token, onClose, onUpdate, socket, lists }: P
     }
   };
 
-  const handleOverlayClick = (e: React.MouseEvent) => {
+  const handleOverlayClick = async (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
-        handleSave();
+        await handleSave();
         onClose();
     }
   };
@@ -127,7 +127,7 @@ function CardModal({ t, i18n, card, token, onClose, onUpdate, socket, lists }: P
     setIsSaving(true);
     const updates: any = { isDone: false, inProgress: true };
     try {
-      await fetch(`http://localhost:3001/api/cards/${card.id}`, {
+      await fetch(`${API_URL}/api/cards/${card.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -157,7 +157,7 @@ function CardModal({ t, i18n, card, token, onClose, onUpdate, socket, lists }: P
                     {card.completedAt && <span className="text-emerald-400">{t("cardCompleted", {date: new Date(card.completedAt).toLocaleDateString()})}</span>}
                 </div>
             </div>
-            <button aria-label={t("saveAndClose")} onClick={() => { handleSave(); onClose(); }} className="text-slate-400 hover:text-white transition-colors bg-slate-800 p-2 rounded-lg shrink-0">
+            <button aria-label={t("saveAndClose")} onClick={async () => { await handleSave(); onClose(); }} className="text-slate-400 hover:text-white transition-colors bg-slate-800 p-2 rounded-lg shrink-0">
                 <X size={20} />
             </button>
         </div>
@@ -244,7 +244,7 @@ function CardModal({ t, i18n, card, token, onClose, onUpdate, socket, lists }: P
 
         <div className="p-6 border-t border-slate-700 bg-slate-800/30 flex justify-end gap-3">
             <button 
-                onClick={() => { handleSave(); onClose(); }} 
+                onClick={async () => { await handleSave(); onClose(); }} 
                 disabled={isSaving}
                 className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors border border-slate-600"
             >
@@ -279,5 +279,3 @@ function CardModal({ t, i18n, card, token, onClose, onUpdate, socket, lists }: P
     </div>
   );
 }
-
-export default withTranslation()(CardModal);

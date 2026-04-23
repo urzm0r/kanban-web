@@ -10,7 +10,14 @@ const pl = {
         signIn_long: "Zaloguj się na swoje konto",
         signUp: "Zarejestruj się",
         saveAndClose: "Zapisz i zamknij",
-        
+        logout: "Wyloguj się",
+        searchBoards: "Szukaj tablic...",
+        createBoard: "Utwórz tablicę",
+        members: "członków",
+        share: "Udostępnij",
+        inviteUser: "Zaproś użytkownika",
+        userSearchPlaceholder: "Wpisz nazwę lub email...",
+
         // auth screen
         email: "Adres mejlowy",
         password: "Hasło",
@@ -18,7 +25,7 @@ const pl = {
         createAccount: "Stwórz nowe konto",
         signInProposal: "Masz już konto?",
         signUpProposal: "Nie masz konta?",
-    
+
         // board view
         navbarSearch: "Szukaj zadań, projektów, osób...",
         addNewCard: "Dodaj kartę",
@@ -37,7 +44,7 @@ const pl = {
         taskTitleHint: "Podaj nazwę zadania...",
         listDeletionConfirmation: "Czy na pewno chcesz usunąć tą listę i wszystkie jej karty?",
         cardDeletionConfirmation: "Czy na pewno chcesz usunąć tą kartę?",
-                
+
         // card edit view
         cardCreated: "Utworzono: {{date}}",
         cardContentTitle: "Szczegółowy opis",
@@ -45,7 +52,7 @@ const pl = {
         markAsCompleted: "Oznacz jako ukończone",
         markAsInProgress: "Oznacz w toku",
         markAsToDo: "Oznacz jako do zrobienia",
-        
+
         // analytics
         chartValue: "wartość: {{value}}",
         tagFrequency: "Rozkład znaczników",

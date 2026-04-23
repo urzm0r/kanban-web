@@ -1,7 +1,6 @@
 import prisma from "../lib/prisma.js";
 import { authMiddleware } from "../middleware/auth.js";
-import { listSchema } from "../lib/zodSchemas.js";
-import { listUpdateSchema } from "../lib/zodSchemas.js";
+import { listSchema, listUpdateSchema } from "../lib/zodSchemas.js";
 import io from "../lib/socketio.js";
 import express from 'express'
 

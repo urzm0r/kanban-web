@@ -5,12 +5,11 @@ import CardComp from "./Card";
 import type { ListType, Card, BoardActions } from "../types";
 import { Plus, Pencil, Trash, X, Check } from "lucide-react";
 import TelemetryColumn from "./TelemetryColumn";
-import { withTranslation } from "react-i18next";
-
+import { useTranslation } from "react-i18next";
+import ConfirmModal from "./ConfirmModal";
+import { API_URL } from "../lib/api";
 
 interface Props {
-  t: any,
-  i18n: any,
   list: ListType;
   cards: Card[];
   currentSocketId: string | null;
@@ -22,13 +21,16 @@ interface Props {
   actions: BoardActions
 }
 
-function List({ t, i18n, list, cards, currentSocketId, token, onAddCard, onOpenModal, boardCards, allLists, actions }: Props) {
+export default function List({ list, cards, currentSocketId, token, onAddCard, onOpenModal, boardCards, allLists, actions }: Props) {
   const [isAdding, setIsAdding] = useState(false);
   const [newCardContent, setNewCardContent] = useState("");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(list.title);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const { moveListByOffset, moveCardByOffset } = actions;
+  const { t } = useTranslation();
+
+  const { moveListByOffset } = actions;
 
   const { setNodeRef, isOver, attributes, listeners, transform, transition, isDragging } = useSortable({
     id: list.id,
@@ -48,7 +50,7 @@ function List({ t, i18n, list, cards, currentSocketId, token, onAddCard, onOpenM
     if (!newCardContent.trim()) return;
 
     try {
-      await fetch("http://localhost:3001/api/cards", {
+      await fetch(`${API_URL}/api/cards`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -71,7 +73,7 @@ function List({ t, i18n, list, cards, currentSocketId, token, onAddCard, onOpenM
         return;
     }
     try {
-      await fetch(`http://localhost:3001/api/lists/${list.id}`, {
+      await fetch(`${API_URL}/api/lists/${list.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -86,15 +88,19 @@ function List({ t, i18n, list, cards, currentSocketId, token, onAddCard, onOpenM
     }
   };
 
-  const handleDeleteList = async () => {
-    if (!window.confirm(t("listDeletionConfirmation"))) return;
+  const handleDeleteList = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
     try {
-      await fetch(`http://localhost:3001/api/lists/${list.id}`, {
+      await fetch(`${API_URL}/api/lists/${list.id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
+      setShowDeleteConfirm(false);
       onAddCard();
     } catch (e) {
       console.error("Failed to delete list", e);
@@ -206,8 +212,14 @@ function List({ t, i18n, list, cards, currentSocketId, token, onAddCard, onOpenM
             </div>
           </div>
       )}
+
+      <ConfirmModal 
+        isOpen={showDeleteConfirm}
+        title={t("deleteBoardConfirm") || "Delete List"}
+        message={t("listDeletionConfirmation")}
+        onConfirm={confirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }
-
-export default withTranslation()(List)

@@ -1,19 +1,22 @@
 import { useState } from "react";
-import { withTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
+import { API_URL } from "../lib/api";
 
-function AuthScreen({ t, i18n, onAuthSuccess }: { t:any, i18n: any, onAuthSuccess: (token: string) => void }) {
+export default function AuthScreen({ onAuthSuccess }: { onAuthSuccess: (token: string) => void }) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
+  const { t } = useTranslation();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
     try {
-      const res = await fetch(`http://localhost:3001${endpoint}`, {
+      const res = await fetch(`${API_URL}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(isLogin ? { email, password } : { email, name, password }),
@@ -64,7 +67,7 @@ function AuthScreen({ t, i18n, onAuthSuccess }: { t:any, i18n: any, onAuthSucces
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-slate-300">{t("password", { context: (isLogin ? null : "signUp")} )}</label>
+            <label className="block text-sm font-medium text-slate-300">{t("password")}</label>
             <input
               type="password"
               required
@@ -99,5 +102,3 @@ function AuthScreen({ t, i18n, onAuthSuccess }: { t:any, i18n: any, onAuthSucces
     </div>
   );
 }
-
-export default withTranslation()(AuthScreen);

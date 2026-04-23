@@ -24,7 +24,7 @@ authRouter.post('/register', async (req, res) => {
         });
         const token = jwt.sign({ userId: user.id, name: user.name }, JWT_SECRET as string, { expiresIn: '1d' });
         res.json({ token, user: { id: user.id, email: user.email, name: user.name } });
-    } catch (e) {
+    } catch {
         res.status(500).json({ error: "Registration failed" });
     }
 });
@@ -42,7 +42,7 @@ authRouter.post('/login', async (req, res) => {
 
         const token = jwt.sign({ userId: user.id, name: user.name }, JWT_SECRET as string, { expiresIn: '1d' });
         res.json({ token, user: { id: user.id, email: user.email, name: user.name } });
-    } catch (e) {
+    } catch {
         res.status(500).json({ error: "Login failed" });
     }
 });

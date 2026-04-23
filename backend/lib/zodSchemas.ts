@@ -15,3 +15,12 @@ export const cardUpdateSchema = z.object({
     listId: z.string().uuid().optional(),
     priority: z.string().optional()
 });
+
+export const boardSchema = z.object({ 
+    title: z.string().min(1)
+});
+
+export const boardMemberSchema = z.object({
+    userId: z.string().uuid(),
+    role: z.enum(["ADMIN", "MEMBER", "VIEWER"]).default("MEMBER")
+});

@@ -13,6 +13,9 @@ model User {
   name      String   @unique
   password  String
   createdAt DateTime @default(now())
+
+  ownedBoards   Board[]       @relation("BoardOwner")
+  memberships   BoardMember[]
 }
 
 model Board {
@@ -20,6 +23,23 @@ model Board {
   title     String
   lists     List[]
   createdAt DateTime @default(now())
+
+  ownerId   String
+  owner     User     @relation("BoardOwner", fields: [ownerId], references: [id])
+  members   BoardMember[]
+}
+
+model BoardMember {
+  id      String @id @default(uuid())
+  role    String @default("MEMBER") // ADMIN, MEMBER, VIEWER
+  
+  boardId String
+  board   Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([boardId, userId])
 }
 
 model List {

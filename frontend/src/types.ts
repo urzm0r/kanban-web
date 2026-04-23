@@ -33,6 +33,8 @@ export interface ListType {
 export interface BoardType {
   id: string;
   title: string;
+  ownerId: string;
+  members: { userId: string; role: string }[];
   lists: ListType[];
 }
 
@@ -43,6 +45,6 @@ export interface User {
 }
 
 export interface BoardActions {
-  moveListByOffset: (listId: String, offset: number) => void;
+  moveListByOffset: (listId: string, offset: number) => void;
   moveCardByOffset: (card: Card, listOffset: number, cardOffset: number) => void;
 }

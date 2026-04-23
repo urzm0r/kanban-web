@@ -21,13 +21,14 @@ tagsRouter.post('/', authMiddleware, async (req, res) => {
         const parsed = tagSchema.safeParse(req.body);
         if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
         const { name, color } = parsed.data;
-        const tag = await prisma.tag.create({ data: { name, color } });
+        const tag = await prisma.tag.upsert({
+            where: { name },
+            update: {},
+            create: { name, color: color ?? null }
+        });
         res.json(tag);
-    } catch (e) {
-        // Tag might exist
-        const existing = await prisma.tag.findUnique({ where: { name: req.body.name } });
-        if (existing) res.json(existing);
-        else res.status(500).json({ error: "Failed to create tag" });
+    } catch {
+        res.status(500).json({ error: "Failed to create tag" });
     }
 });
 

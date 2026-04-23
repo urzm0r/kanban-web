@@ -1,13 +1,13 @@
 import { Server } from 'socket.io';
-import { httpServer } from './expressApp.js';
+import { httpServer, CORS_ORIGIN } from './expressApp.js';
 import { JWT_SECRET } from '../middleware/auth.js';
 import jwt from 'jsonwebtoken'
 import prisma from './prisma.js';
 
 const io = new Server(httpServer, {
     cors: {
-        origin: "*",
-        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+        origin: CORS_ORIGIN,
+        methods: ["GET", "POST"]
     }
 });
 
@@ -27,7 +27,17 @@ io.on('connection', (socket) => {
     const user = (socket as any).data.user;
     console.log(` User connected: ${user.name} (${socket.id})`);
 
-    socket.on('card:locked', async (cardId, callback) => {
+    socket.on('join_board', (boardId) => {
+        socket.join(`board:${boardId}`);
+        console.log(` User ${user.name} joined board: ${boardId}`);
+    });
+
+    socket.on('leave_board', (boardId) => {
+        socket.leave(`board:${boardId}`);
+        console.log(` User ${user.name} left board: ${boardId}`);
+    });
+
+    socket.on('card:locked', async ({ cardId, boardId }, callback) => {
         try {
             const card = await prisma.card.findUnique({ where: { id: cardId } });
             if (card && (!card.lockedBy || card.lockedBy === user.userId)) {
@@ -35,7 +45,7 @@ io.on('connection', (socket) => {
                     where: { id: cardId },
                     data: { lockedBy: user.userId, lockedByName: user.name, lockedAt: new Date() }
                 });
-                socket.broadcast.emit('card:locked', { cardId, lockedBy: user.userId, lockedByName: user.name });
+                socket.to(`board:${boardId}`).emit('card:locked', { cardId, lockedBy: user.userId, lockedByName: user.name });
                 if (callback) callback({ success: true });
             } else if (callback) {
                 callback({ error: "Card already locked by another user" });
@@ -46,13 +56,13 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('card:unlocked', async (cardId, callback) => {
+    socket.on('card:unlocked', async ({ cardId, boardId }, callback) => {
         try {
             await prisma.card.update({
                 where: { id: cardId },
                 data: { lockedBy: null, lockedByName: null, lockedAt: null }
             });
-            socket.broadcast.emit('card:unlocked', { cardId });
+            socket.to(`board:${boardId}`).emit('card:unlocked', { cardId });
             if (callback) callback({ success: true });
         } catch (error: any) {
             console.error("Card unlock error:", error);
@@ -60,7 +70,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('cards:reordered', async (items, callback) => {
+    socket.on('cards:reordered', async ({ items, boardId }, callback) => {
         try {
             const cardIds = items.map((i: any) => i.id);
             const existingCards = await prisma.card.findMany({ where: { id: { in: cardIds } } });
@@ -82,7 +92,7 @@ io.on('connection', (socket) => {
                     });
                 })
             );
-            socket.broadcast.emit('cards:reordered', items);
+            socket.to(`board:${boardId}`).emit('cards:reordered', items);
             if (callback) callback({ success: true });
         } catch (error: any) {
             console.error("Cards reorder error:", error);
@@ -90,7 +100,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('lists:reordered', async (items, callback) => {
+    socket.on('lists:reordered', async ({ items, boardId }, callback) => {
         try {
             await prisma.$transaction(
                 items.map((item: any) =>
@@ -100,7 +110,7 @@ io.on('connection', (socket) => {
                     })
                 )
             );
-            socket.broadcast.emit('lists:reordered', items);
+            socket.to(`board:${boardId}`).emit('lists:reordered', items);
             if (callback) callback({ success: true });
         } catch (error: any) {
             console.error("Lists reorder error:", error);
@@ -111,11 +121,22 @@ io.on('connection', (socket) => {
     socket.on('disconnect', async () => {
         console.log(` User disconnected: ${user.name} (${socket.id})`);
         try {
+            // Find which cards were locked by this user to broadcast unlock
+            const lockedCards = await prisma.card.findMany({
+                where: { lockedBy: user.userId },
+                include: { list: true }
+            });
+
             await prisma.card.updateMany({
                 where: { lockedBy: user.userId },
                 data: { lockedBy: null, lockedByName: null, lockedAt: null }
             });
-            socket.broadcast.emit('card:unlocked_all', { userId: user.userId });
+
+            // Notify each relevant board
+            const boardsToNotify = Array.from(new Set(lockedCards.map(c => c.list.boardId)));
+            boardsToNotify.forEach(boardId => {
+                socket.to(`board:${boardId}`).emit('card:unlocked_all', { userId: user.userId });
+            });
         } catch (error) {
             console.error("Disconnect cleanup error:", error);
         }

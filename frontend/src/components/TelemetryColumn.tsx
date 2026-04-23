@@ -1,18 +1,18 @@
 import { useState } from "react";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from "recharts";
 import type { Card, ListType } from "../types";
-import { withTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 
 interface Props {
-  t: any;
-  i18n: any;
   boardCards: Card[];
   lists: ListType[];
 }
 
-function TelemetryColumn({ t, i18n, boardCards, lists }: Props) {
+export default function TelemetryColumn({ boardCards, lists }: Props) {
   const [chartType, setChartType] = useState<number>(1);
   const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#64748b"];
+
+  const { t } = useTranslation();
 
   // --- Compute various datas ---
 
@@ -249,5 +249,3 @@ function TelemetryColumn({ t, i18n, boardCards, lists }: Props) {
     </div>
   );
 }
-
-export default withTranslation()(TelemetryColumn);

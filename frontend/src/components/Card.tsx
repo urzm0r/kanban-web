@@ -3,11 +3,11 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Lock, Pencil, Trash, X, Check, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import type { BoardActions, Card as CardType } from "../types";
-import { withTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
+import ConfirmModal from "./ConfirmModal";
+import { API_URL } from "../lib/api";
 
 interface Props {
-  t: any,
-  i18n: any,
   card: CardType;
   currentSocketId: string | null;
   token: string;
@@ -16,11 +16,14 @@ interface Props {
   actions: BoardActions;
 }
 
-function Card({ t, i18n, card, currentSocketId, token, onUpdate, onOpenModal, actions }: Props) {
+export default function Card({ card, currentSocketId, token, onUpdate, onOpenModal, actions }: Props) {
   // Task/Card jest zablokowany jeśli ma ustalone lockedBy i to lockedBy nie jest naszym socketID
   const isLockedByOther = card.lockedBy !== null && card.lockedBy !== currentSocketId;
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(card.content);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const { t } = useTranslation();
 
   const moveCardByOffset = actions.moveCardByOffset;
 
@@ -31,7 +34,7 @@ function Card({ t, i18n, card, currentSocketId, token, onUpdate, onOpenModal, ac
       return;
     }
     try {
-      await fetch(`http://localhost:3001/api/cards/${card.id}`, {
+      await fetch(`${API_URL}/api/cards/${card.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -41,15 +44,15 @@ function Card({ t, i18n, card, currentSocketId, token, onUpdate, onOpenModal, ac
       });
       setIsEditing(false);
       onUpdate();
-    } catch (e) {
-      console.error("Failed to update card", e);
+    } catch {
+      console.error("Failed to update card");
     }
   };
 
   const toggleDone = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await fetch(`http://localhost:3001/api/cards/${card.id}`, {
+      await fetch(`${API_URL}/api/cards/${card.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -58,24 +61,28 @@ function Card({ t, i18n, card, currentSocketId, token, onUpdate, onOpenModal, ac
         body: JSON.stringify({ isDone: !card.isDone })
       });
       onUpdate();
-    } catch (err) {
-      console.error(err);
+    } catch {
+      console.error("Failed to toggle done");
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent) => {
+  const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm(t("cardDeletionConfirmation"))) return;
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
     try {
-      await fetch(`http://localhost:3001/api/cards/${card.id}`, {
+      await fetch(`${API_URL}/api/cards/${card.id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
+      setShowDeleteConfirm(false);
       onUpdate();
-    } catch (err) {
-      console.error("Failed to delete card", err);
+    } catch {
+      console.error("Failed to delete card");
     }
   };
 
@@ -189,7 +196,7 @@ function Card({ t, i18n, card, currentSocketId, token, onUpdate, onOpenModal, ac
           {card.tags && card.tags.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-4 mt-2">
               {card.tags.map((tag) => {
-                let tagColor = "bg-[#1d3536] text-[#4fd1c5]"; // default cyan
+                const tagColor = "bg-[#1d3536] text-[#4fd1c5]"; // default cyan
                 return (
                   <span key={tag.id} className={`text-[9px] ${tagColor} px-2 py-0.5 rounded-sm font-bold uppercase tracking-wider`}>
                     {tag.name}
@@ -240,8 +247,14 @@ function Card({ t, i18n, card, currentSocketId, token, onUpdate, onOpenModal, ac
           </div>
         </>
       )}
+
+      <ConfirmModal 
+        isOpen={showDeleteConfirm}
+        title={t("deleteBoardConfirm") || "Delete Card"}
+        message={t("cardDeletionConfirmation")}
+        onConfirm={confirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }
-
-export default withTranslation()(Card)

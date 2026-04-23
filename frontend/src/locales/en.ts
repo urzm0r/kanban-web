@@ -10,7 +10,14 @@ const en = {
         signOut: "Sign out",
         userSettings: "User settings",
         saveAndClose: "Save and close",
-        
+        logout: "Logout",
+        searchBoards: "Search boards...",
+        createBoard: "Create board",
+        members: "members",
+        share: "Share",
+        inviteUser: "Invite user",
+        userSearchPlaceholder: "Type name or email...",
+
         // auth screen
         email: "Email",
         password: "Password",
@@ -18,7 +25,7 @@ const en = {
         createAccount: "Create a new account",
         signInProposal: "Already have an account?",
         signUpProposal: "Don't have an account?",
-    
+
         // board view
         navbarSearch: "Search tasks, projects, or people...",
         addNewCard: "Add card",
@@ -37,7 +44,7 @@ const en = {
         taskTitleHint: "Enter task title...",
         listDeletionConfirmation: "Do you really want to delete this list and all of its cards?",
         cardDeletionConfirmation: "Do you really want to delete this card?",
-                
+
         // card edit view
         cardCreated: "Created: {{date}}",
         cardContentTitle: "Task description",
@@ -45,7 +52,7 @@ const en = {
         markAsCompleted: "Mark as completed",
         markAsInProgress: "Mark as in progress",
         markAsToDo: "Mark as to-do",
-        
+
         // analytics
         chartValue: "value: {{value}}",
         tagFrequency: "Tag frequency",

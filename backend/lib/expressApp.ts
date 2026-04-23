@@ -2,10 +2,15 @@ import express from 'express'
 import cors from 'cors';
 import { createServer } from 'http';
 
+const CORS_ORIGIN = process.env["CORS_ORIGIN"] || "http://localhost:5173";
+
 const app = express();
 const httpServer = createServer(app);
 
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+    origin: CORS_ORIGIN,
+    credentials: true
+}));
+app.use(express.json({ limit: '10kb' }));
 
-export {app, httpServer}
+export { app, httpServer, CORS_ORIGIN }
