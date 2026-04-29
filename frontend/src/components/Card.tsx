@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Lock, Pencil, Trash, X, Check, ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { Lock, Trash, Check, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import type { BoardActions, Card as CardType } from "../types";
 import { useTranslation } from "react-i18next";
 import ConfirmModal from "./ConfirmModal";
 import { API_URL } from "../lib/api";
+import confetti from 'canvas-confetti';
 
 interface Props {
   card: CardType;
@@ -14,12 +15,13 @@ interface Props {
   onUpdate: () => void;
   onOpenModal: (card: CardType) => void;
   actions: BoardActions;
+  confettiEnabled?: boolean;
 }
 
-export default function Card({ card, currentSocketId, token, onUpdate, onOpenModal, actions }: Props) {
+export default function Card({ card, currentSocketId, token, onUpdate, onOpenModal, actions, confettiEnabled }: Props) {
   // Task/Card jest zablokowany jeśli ma ustalone lockedBy i to lockedBy nie jest naszym socketID
   const isLockedByOther = card.lockedBy !== null && card.lockedBy !== currentSocketId;
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const { t } = useTranslation();
@@ -30,14 +32,25 @@ export default function Card({ card, currentSocketId, token, onUpdate, onOpenMod
   const toggleDone = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
+      const newDoneState = !card.isDone;
       await fetch(`${API_URL}/api/cards/${card.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ isDone: !card.isDone })
+        body: JSON.stringify({ isDone: newDoneState })
       });
+
+      if (newDoneState && confettiEnabled !== false) {
+        confetti({
+          particleCount: 150,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#10b981', '#3b82f6', '#4fd1c5']
+        });
+      }
+
       onUpdate();
     } catch {
       console.error("Failed to toggle done");
@@ -102,21 +115,21 @@ export default function Card({ card, currentSocketId, token, onUpdate, onOpenMod
 
   return (
     <div
-    ref={setNodeRef}
-    style={style}
-    {...attributes}
-    {...(isLockedByOther || isEditing ? {} : listeners)}
-    onClick={handleClick}
-    onKeyDown={e => {if (e.key === "Enter") handleClick()}}
-    aria-label={t("screenReaderEditCard")}
-    tabIndex={0}
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...(isLockedByOther || isEditing ? {} : listeners)}
+      onClick={handleClick}
+      onKeyDown={e => { if (e.key === "Enter") handleClick() }}
+      aria-label={t("screenReaderEditCard")}
+      tabIndex={0}
       className={`relative group flex flex-col p-4 rounded-lg shadow-sm border 
         ${isLockedByOther ? 'bg-[#1e1f24] border-slate-800 opacity-60 cursor-not-allowed' : card.isDone ? 'bg-[#15161a] border-[#22242b] opacity-80' : card.inProgress ? 'bg-[#291f13] border-[#a36214] opacity-90 cursor-grab' : 'bg-[#1e1f24] border-[#2a2d36] hover:border-accent/50 cursor-grab active:cursor-grabbing'}
         transition-all duration-200`}
     >
       {/* Top Bar: Date Tag & Checkbox */}
       <div className="flex justify-between items-start w-full mb-3">
-        <span className="text-[10px] font-bold text-slate-400 bg-[#252830] px-2 py-0.5 rounded-sm shadow-sm tracking-wide">
+        <span className="text-xs font-bold text-slate-400 bg-[#252830] px-2 py-0.5 rounded-sm shadow-sm tracking-wide">
           {dateTag}
         </span>
 
@@ -136,15 +149,15 @@ export default function Card({ card, currentSocketId, token, onUpdate, onOpenMod
 
       {/* Title & Description */}
       <div className="flex gap-2 items-start mb-1.5">
-        {card.priority === 'High' && <span title="High Priority"><ArrowUp size={16} className="text-rose-500 mt-0.5 shrink-0" /></span>}
-        {card.priority === 'Medium' && <span title="Medium Priority"><Minus size={16} className="text-amber-500 mt-0.5 shrink-0" /></span>}
-        {card.priority === 'Low' && <span title="Low Priority"><ArrowDown size={16} className="text-emerald-500 mt-0.5 shrink-0" /></span>}
-        <h3 className={`font-bold text-[14px] leading-snug ${card.isDone ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
+        {card.priority === 'High' && <span title={t("highPriority")}><ArrowUp size={16} className="text-rose-500 mt-0.5 shrink-0" /></span>}
+        {card.priority === 'Medium' && <span title={t("mediumPriority")}><Minus size={16} className="text-amber-500 mt-0.5 shrink-0" /></span>}
+        {card.priority === 'Low' && <span title={t("lowPriority")}><ArrowDown size={16} className="text-emerald-500 mt-0.5 shrink-0" /></span>}
+        <h3 className={`font-bold text-base leading-snug truncate whitespace-pre-wrap ${card.isDone ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
           {card.content}
         </h3>
       </div>
       {card.description && (
-        <p className="text-[11px] text-slate-500 line-clamp-2 mb-3 leading-relaxed font-medium">
+        <p className="text-[13px] text-slate-500 line-clamp-2 mb-3 leading-relaxed font-medium">
           {card.description}
         </p>
       )}
@@ -155,7 +168,7 @@ export default function Card({ card, currentSocketId, token, onUpdate, onOpenMod
           {card.tags.map((tag) => {
             const tagColor = "bg-[#1d3536] text-[#4fd1c5]"; // default cyan
             return (
-              <span key={tag.id} className={`text-[9px] ${tagColor} px-2 py-0.5 rounded-sm font-bold uppercase tracking-wider`}>
+              <span key={tag.id} className={`text-[11px] ${tagColor} px-2 py-0.5 rounded-sm font-bold uppercase tracking-wider`}>
                 {tag.name}
               </span>
             );
@@ -169,30 +182,30 @@ export default function Card({ card, currentSocketId, token, onUpdate, onOpenMod
           {card.members.map(member => <div key={member.id} className="w-5 h-5 rounded-full overflow-hidden bg-slate-700 border border-slate-600">
             <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${member.name}`} alt={member.name} />
           </div>)}
-          
+
         </div>
         <div className="flex items-center gap-2">
           <button className="text-slate-300 text-[15px] sr-only focus:not-sr-only"
-                onClick={()=>moveCardByOffset(card,-1,0)}>
-                {t("screenReaderMoveCardLeft")}
-              </button>
-              <button className="text-slate-300 text-[15px] sr-only focus:not-sr-only"
-                onClick={()=>moveCardByOffset(card,1,0)}>
-                {t("screenReaderMoveCardRight")}
-              </button>
-              <button className="text-slate-300 text-[15px] sr-only focus:not-sr-only"
-                onClick={()=>moveCardByOffset(card,0,1)}>
-                {t("screenReaderMoveCardDown")}
-              </button>
-              <button className="text-slate-300 text-[15px] sr-only focus:not-sr-only"
-                onClick={()=>moveCardByOffset(card,0,-1)}>
-                {t("screenReaderMoveCardUp")}
-              </button>
+            onClick={() => moveCardByOffset(card, -1, 0)}>
+            {t("screenReaderMoveCardLeft")}
+          </button>
+          <button className="text-slate-300 text-[15px] sr-only focus:not-sr-only"
+            onClick={() => moveCardByOffset(card, 1, 0)}>
+            {t("screenReaderMoveCardRight")}
+          </button>
+          <button className="text-slate-300 text-[15px] sr-only focus:not-sr-only"
+            onClick={() => moveCardByOffset(card, 0, 1)}>
+            {t("screenReaderMoveCardDown")}
+          </button>
+          <button className="text-slate-300 text-[15px] sr-only focus:not-sr-only"
+            onClick={() => moveCardByOffset(card, 0, -1)}>
+            {t("screenReaderMoveCardUp")}
+          </button>
           {!isLockedByOther && !card.isDone && (
             <div className="opacity-60 group-hover:opacity-100 transition-opacity flex gap-1" onClick={e => e.stopPropagation()}>
-              
-              <button aria-label={t("screenReaderDeleteCard")} onClick={handleDelete} className="text-slate-400 hover:text-rose-400 focus:text-rose-400 transition-colors p-1 cursor-pointer">
-                <Trash size={12} />
+
+              <button aria-label={t("screenReaderDeleteCard")} onClick={handleDelete} className="text-slate-400 hover:text-rose-400 focus:text-rose-400 transition-colors p-2 cursor-pointer">
+                <Trash size={16} />
               </button>
             </div>
           )}
@@ -200,12 +213,14 @@ export default function Card({ card, currentSocketId, token, onUpdate, onOpenMod
       </div>
 
 
-      <ConfirmModal 
+      <ConfirmModal
         isOpen={showDeleteConfirm}
-        title={t("deleteBoardConfirm") || "Delete Card"}
+        title={t("deleteCardConfirm") || "Delete Card"}
         message={t("cardDeletionConfirmation")}
         onConfirm={confirmDelete}
         onCancel={() => setShowDeleteConfirm(false)}
+        confirmText={t("confirm")}
+        cancelText={t("cancel")}
       />
     </div>
   );

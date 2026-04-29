@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { LogOut, Plus, Search, LayoutGrid, Users, Settings, UserPlus, UserMinus, Trash2 } from "lucide-react";
+import { LogOut, Plus, Search, LayoutGrid, Users, Settings, UserPlus, UserMinus, Trash2, Pencil } from "lucide-react";
 import ShareModal from "./ShareModal";
 import ManageMembersModal from "./ManageMembersModal";
 import ConfirmModal from "./ConfirmModal";
@@ -29,6 +29,8 @@ export default function Dashboard({ token, userId, onLogout }: { token: string, 
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [shareBoardId, setShareBoardId] = useState<string | null>(null);
     const [manageMembersBoardId, setManageMembersBoardId] = useState<string | null>(null);
+    const [renameBoardId, setRenameBoardId] = useState<string | null>(null);
+    const [renameBoardTitle, setRenameBoardTitle] = useState("");
 
     // Modal states
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -98,6 +100,28 @@ export default function Dashboard({ token, userId, onLogout }: { token: string, 
             }
         } catch (err) {
             console.error("Error creating board", err);
+        }
+    };
+
+    const handleRenameBoard = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!renameBoardId || !renameBoardTitle.trim()) return;
+
+        try {
+            const res = await fetch(`${API_URL}/api/boards/${renameBoardId}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ title: renameBoardTitle })
+            });
+            if (res.ok) {
+                setBoards(boards.map(b => b.id === renameBoardId ? { ...b, title: renameBoardTitle } : b));
+                setRenameBoardId(null);
+            }
+        } catch (err) {
+            console.error("Error renaming board", err);
         }
     };
 
@@ -213,15 +237,15 @@ export default function Dashboard({ token, userId, onLogout }: { token: string, 
                                     <div
                                         key={board.id}
                                         tabIndex={0}
-                                        onKeyDown={e => {if (e.key === "Enter") navigate(`/board/${board.id}`)}}
+                                        onKeyDown={e => { if (e.key === "Enter") navigate(`/board/${board.id}`) }}
                                         className="group relative bg-[#17171a] border border-white/5 rounded-xl hover:border-blue-500/50 transition-all hover:bg-[#1e1e24] shadow-sm flex flex-col justify-between h-40"
                                     >
                                         <div
                                             className="p-5 pb-0 cursor-pointer flex-1"
                                             onClick={() => navigate(`/board/${board.id}`)}
                                         >
-                                            <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors mb-1 truncate flex items-center gap-2">
-                                                {board.title}
+                                            <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors mb-1 flex items-center gap-2 min-w-0">
+                                                <span className="truncate">{board.title}</span>
                                             </h3>
                                             <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">
                                                 Board
@@ -237,28 +261,35 @@ export default function Dashboard({ token, userId, onLogout }: { token: string, 
                                             <div className="relative flex items-center justify-end">
                                                 {/* Expanded Menu */}
                                                 <div
-                                                    className={`flex items-center gap-1.5 overflow-hidden transition-all duration-300 ease-in-out ${openMenuId === board.id ? 'max-w-[120px] opacity-100 mr-2' : 'max-w-0 opacity-0'}`}
+                                                    className={`flex items-center gap-1.5 overflow-hidden transition-all duration-300 ease-in-out ${openMenuId === board.id ? 'max-w-[160px] opacity-100 mr-2' : 'max-w-0 opacity-0'}`}
                                                 >
                                                     {board.ownerId === userId && (
                                                         <>
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); setShareBoardId(board.id); setOpenMenuId(null); }}
                                                                 className="p-1.5 bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white rounded-lg transition-colors cursor-pointer"
-                                                                title="Add user"
+                                                                title={t("addUserTooltip")}
                                                             >
                                                                 <UserPlus className="w-4 h-4" />
                                                             </button>
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); handleRemoveUser(board.id); setOpenMenuId(null); }}
                                                                 className="p-1.5 bg-orange-600/20 text-orange-400 hover:bg-orange-600 hover:text-white rounded-lg transition-colors cursor-pointer"
-                                                                title="Remove user"
+                                                                title={t("removeUserTooltip")}
                                                             >
                                                                 <UserMinus className="w-4 h-4" />
                                                             </button>
                                                             <button
+                                                                onClick={(e) => { e.stopPropagation(); setRenameBoardId(board.id); setRenameBoardTitle(board.title); setOpenMenuId(null); }}
+                                                                className="p-1.5 bg-yellow-600/20 text-yellow-400 hover:bg-yellow-600 hover:text-white rounded-lg transition-colors cursor-pointer"
+                                                                title={t("renameBoardTitleModal")}
+                                                            >
+                                                                <Pencil className="w-4 h-4" />
+                                                            </button>
+                                                            <button
                                                                 onClick={(e) => { e.stopPropagation(); handleDeleteBoard(board.id); setOpenMenuId(null); }}
                                                                 className="p-1.5 bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white rounded-lg transition-colors cursor-pointer"
-                                                                title="Delete board"
+                                                                title={t("deleteBoardTooltip")}
                                                             >
                                                                 <Trash2 className="w-4 h-4" />
                                                             </button>
@@ -293,7 +324,7 @@ export default function Dashboard({ token, userId, onLogout }: { token: string, 
                         {userResults.length > 0 && (
                             <section className="animate-in slide-in-from-bottom-4 duration-500">
                                 <div className="flex items-center gap-2 mb-6 border-l-2 border-blue-500 pl-4">
-                                    <h2 className="text-xl font-bold text-white">People</h2>
+                                    <h2 className="text-xl font-bold text-white">{t("people")}</h2>
                                     <span className="text-xs font-bold bg-blue-600/20 text-blue-400 px-2 py-0.5 rounded-full">
                                         {userResults.length}
                                     </span>
@@ -320,21 +351,59 @@ export default function Dashboard({ token, userId, onLogout }: { token: string, 
                 )}
             </main>
 
+            {renameBoardId && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-[#1e1e24] border border-white/10 rounded-2xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+                        <h2 className="text-2xl font-bold mb-6 text-white">{t("renameBoardTitleModal")}</h2>
+                        <form onSubmit={handleRenameBoard}>
+                            <div className="mb-6">
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">{t("boardTitleLabel")}</label>
+                                <input
+                                    type="text"
+                                    required
+                                    autoFocus
+                                    maxLength={50}
+                                    value={renameBoardTitle}
+                                    onChange={(e) => setRenameBoardTitle(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-[#111113] border border-white/10 rounded-lg focus:outline-none focus:border-blue-500 transition-all text-slate-200"
+                                />
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setRenameBoardId(null)}
+                                    className="flex-1 px-4 py-2.5 bg-transparent hover:bg-white/5 border border-white/10 text-slate-400 font-bold rounded-lg transition-all text-sm"
+                                >
+                                    {t("addNewCardCancel")}
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-all text-sm shadow-lg shadow-blue-900/20 cursor-pointer"
+                                >
+                                    {t("change")}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             {showModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-[#1e1e24] border border-white/10 rounded-2xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
                         <h2 className="text-2xl font-bold mb-6 text-white">{t("createBoard")}</h2>
                         <form onSubmit={handleCreateBoard}>
                             <div className="mb-6">
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Board Title</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">{t("boardTitleLabel")}</label>
                                 <input
                                     type="text"
                                     required
                                     autoFocus
+                                    maxLength={50}
                                     value={newBoardTitle}
                                     onChange={(e) => setNewBoardTitle(e.target.value)}
                                     className="w-full px-4 py-2.5 bg-[#111113] border border-white/10 rounded-lg focus:outline-none focus:border-blue-500 transition-all text-slate-200"
-                                    placeholder="e.g. My New Project"
+                                    placeholder={t("boardTitlePlaceholder")}
                                 />
                             </div>
                             <div className="flex gap-3">
@@ -377,7 +446,7 @@ export default function Dashboard({ token, userId, onLogout }: { token: string, 
             <ConfirmModal
                 isOpen={!!confirmDeleteId}
                 title={t("deleteBoardConfirm") || "Delete Board"}
-                message="Are you sure you want to delete this board? This action cannot be undone."
+                message={t("deleteBoardMessage")}
                 onConfirm={confirmBoardDeletion}
                 onCancel={() => setConfirmDeleteId(null)}
             />

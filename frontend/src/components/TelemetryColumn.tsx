@@ -141,7 +141,7 @@ export default function TelemetryColumn({ boardCards, lists }: Props) {
         <select 
             value={chartType} 
             onChange={(e) => setChartType(Number(e.target.value))}
-            className="w-full bg-[#111113] border border-slate-700 rounded-md py-1.5 px-2 text-xs font-bold text-slate-300 focus:outline-none focus:border-[#3b82f6] shadow-md cursor-pointer"
+            className="w-full bg-[#111113] border border-slate-700 rounded-md py-1.5 px-2 text-sm font-bold text-slate-300 focus:outline-none focus:border-[#3b82f6] shadow-md cursor-pointer"
         >
             <option value={1}>📊 {t("workload_distribution")}</option>
             <option value={2}>⏳ {t("card_aging")}</option>
@@ -151,11 +151,6 @@ export default function TelemetryColumn({ boardCards, lists }: Props) {
         </select>
         
         <div className="h-[180px] w-full relative">
-          <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
-             <span className="text-[10px] font-semibold text-slate-400 text-center px-4 leading-tight">
-                {getActiveChartTitle()}
-             </span>
-          </div>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -192,8 +187,8 @@ export default function TelemetryColumn({ boardCards, lists }: Props) {
       {/* Card Velocity */}
       <div className="flex flex-col gap-2">
         <div className="flex justify-between items-center">
-            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t("cardVelocity")}</h3>
-            <span className="text-[9px] text-slate-500 font-medium">{t("lastWeek")}</span>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t("cardVelocity")}</h3>
+            <span className="text-xs text-slate-500 font-medium">{t("lastWeek")}</span>
         </div>
         <div className="h-[140px] w-full pointer-events-auto">
           <ResponsiveContainer width="100%" height="100%">
@@ -212,10 +207,10 @@ export default function TelemetryColumn({ boardCards, lists }: Props) {
 
       {/* Status Breakdown */}
       <div className="flex flex-col gap-4 mt-2">
-        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t("statusBreakdown")}</h3>
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t("statusBreakdown")}</h3>
         
         <div className="flex flex-col gap-1">
-           <div className="flex justify-between text-[11px] font-semibold text-slate-300">
+           <div className="flex justify-between text-xs font-semibold text-slate-300">
                <span>{t("statusCompleted")}</span>
                <span>{donePct}%</span>
            </div>
@@ -225,7 +220,7 @@ export default function TelemetryColumn({ boardCards, lists }: Props) {
         </div>
 
         <div className="flex flex-col gap-1">
-           <div className="flex justify-between text-[11px] font-semibold text-slate-300">
+           <div className="flex justify-between text-xs font-semibold text-slate-300">
                <span>{t("statusInProgress")}</span>
                <span>{progPct}%</span>
            </div>
@@ -235,7 +230,7 @@ export default function TelemetryColumn({ boardCards, lists }: Props) {
         </div>
 
         <div className="flex flex-col gap-1">
-           <div className="flex justify-between text-[11px] font-semibold text-slate-300">
+           <div className="flex justify-between text-xs font-semibold text-slate-300">
                <span>{t("statusToDo")}</span>
                <span>{todoPct}%</span>
            </div>

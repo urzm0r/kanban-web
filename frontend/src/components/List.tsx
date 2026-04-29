@@ -18,7 +18,8 @@ interface Props {
   onOpenModal?: (card: Card) => void;
   boardCards?: Card[];
   allLists?: ListType[];
-  actions: BoardActions
+  actions: BoardActions;
+  confettiEnabled?: boolean;
 }
 
 const LIST_COLORS = [
@@ -30,13 +31,13 @@ const LIST_COLORS = [
   "#cdcdcd", // white
 ];
 
-export default function List({ list, cards, currentSocketId, token, onAddCard, onOpenModal, boardCards, allLists, actions }: Props) {
+export default function List({ list, cards, currentSocketId, token, onAddCard, onOpenModal, boardCards, allLists, actions, confettiEnabled }: Props) {
   const [isAdding, setIsAdding] = useState(false);
   const [newCardContent, setNewCardContent] = useState("");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(list.title);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [color, setColor] = useState<number>(list.color);
+
 
   const { t } = useTranslation();
 
@@ -78,9 +79,9 @@ export default function List({ list, cards, currentSocketId, token, onAddCard, o
 
   const handleUpdateTitle = async () => {
     if (!editedTitle.trim() || editedTitle === list.title) {
-        setIsEditingTitle(false);
-        setEditedTitle(list.title);
-        return;
+      setIsEditingTitle(false);
+      setEditedTitle(list.title);
+      return;
     }
     try {
       await fetch(`${API_URL}/api/lists/${list.id}`, {
@@ -98,7 +99,8 @@ export default function List({ list, cards, currentSocketId, token, onAddCard, o
     }
   };
 
-  const handleDeleteList = () => {
+  const handleDeleteList = (e: React.MouseEvent) => {
+    e.stopPropagation();
     setShowDeleteConfirm(true);
   };
 
@@ -118,10 +120,8 @@ export default function List({ list, cards, currentSocketId, token, onAddCard, o
   };
 
   const handleChangeColor = async () => {
-    const newColor = (color+1) % LIST_COLORS.length;
-    console.log()
-    setColor(newColor);
-    
+    const nextColor = (list.color + 1) % LIST_COLORS.length;
+
     try {
       await fetch(`${API_URL}/api/lists/${list.id}`, {
         method: "PUT",
@@ -129,7 +129,7 @@ export default function List({ list, cards, currentSocketId, token, onAddCard, o
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ color: newColor })
+        body: JSON.stringify({ color: nextColor })
       });
     } catch (e) {
       console.error("Failed to change color", e);
@@ -137,7 +137,7 @@ export default function List({ list, cards, currentSocketId, token, onAddCard, o
   }
 
   return (
-    <div 
+    <div
       ref={setNodeRef}
       style={style}
       className={`flex flex-col bg-[#1a1c20] w-[320px] min-w-[320px] h-[75vh] rounded-md border transition-all duration-200
@@ -145,114 +145,122 @@ export default function List({ list, cards, currentSocketId, token, onAddCard, o
       overflow-hidden shadow-sm`}
     >
       {/* Header */}
-      <div 
+      <div
         {...attributes}
         {...listeners}
         className="px-4 py-3 bg-[#1a1c20] flex items-center justify-between group cursor-grab active:cursor-grabbing shrink-0"
       >
         {isEditingTitle ? (
           <div className="flex items-center gap-2 flex-grow mr-2">
-            <input 
+            <input
               autoFocus
+              maxLength={40}
               className="flex-grow px-2 py-1 text-sm font-bold bg-[#111113] text-slate-100 border border-blue-500 rounded focus:outline-none"
               value={editedTitle}
               onChange={(e) => setEditedTitle(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleUpdateTitle()}
             />
             <button aria-label={t("screenReaderConfirmTitle")} onClick={handleUpdateTitle} className="text-[#3bbaa8] hover:text-[#4fd1c5] focus:text-[#4fd1c5] cursor-pointer">
-                <Check size={16} />
+              <Check size={16} />
             </button>
             <button aria-label={t("screenReaderCancelTitle")} onClick={() => { setIsEditingTitle(false); setEditedTitle(list.title); }} className="text-slate-400 hover:text-slate-200 focus:text-slate-200 cursor-pointer">
-                <X size={16} />
+              <X size={16} />
             </button>
           </div>
         ) : (
           <div className="flex items-center justify-between flex-grow">
-              <div className="flex items-center gap-2">
-                {/* color switcher */}
-                <button 
-                  aria-label="change list color" 
-                  className={`w-2.5 h-2.5 rounded-full flex-none cursor-pointer`}
-                  style={{backgroundColor: LIST_COLORS[color]}}
-                  onClick={() => handleChangeColor()}
-                ></button>
-                <h2 className="font-semibold text-[15px] text-slate-200 max-h-52 overflow-y-scroll">{list.title}</h2>
-                <span className="bg-[#24272c] text-[11px] font-bold px-2 py-0.5 rounded flex items-center justify-center text-slate-400">
-                  {cards.length}
-                </span>
-              </div>
-              <div className="opacity-60 group-hover:opacity-100 transition-opacity flex items-center gap-2">
-                <button aria-label={t("screenReaderEditListTitle")} onClick={() => setIsEditingTitle(true)} className="text-slate-400 hover:text-blue-500 focus:text-blue-500 transition-colors cursor-pointer">
-                    <Pencil size={14} />
-                </button>
-                <button aria-label={t("screenReaderDeleteList")} onClick={handleDeleteList} className="text-slate-400 hover:text-rose-400 focus:text-rose-400 transition-colors cursor-pointer">
-                    <Trash size={14} />
-                </button>
-                <button className="text-slate-300 text-[15px] sr-only focus:not-sr-only" onClick={() => moveListByOffset(list.id, -1)}>
-                  {t("screenReaderMoveListLeft")}
-                </button>
-                <button className="text-slate-300 text-[15px] sr-only focus:not-sr-only" onClick={() => moveListByOffset(list.id, 1)}>
-                  {t("screenReaderMoveListRight")}
-                </button>
-              </div>
-              
+            <div className="flex items-center gap-2">
+              {/* color switcher */}
+              <button
+                aria-label="change list color"
+                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors cursor-pointer -ml-1.5"
+                onClick={() => handleChangeColor()}
+              >
+                <span
+                  className="w-2.5 h-2.5 rounded-full flex-none"
+                  style={{ backgroundColor: LIST_COLORS[list.color] }}
+                />
+              </button>
+              <h2 className="font-semibold text-[16px] text-slate-200 break-words whitespace-pre-wrap">{list.title}</h2>
+              <span className="bg-[#24272c] text-xs font-bold px-2 py-0.5 rounded flex items-center justify-center text-slate-400">
+                {cards.length}
+              </span>
+            </div>
+            <div className="opacity-60 group-hover:opacity-100 transition-opacity flex items-center gap-2">
+              <button aria-label={t("screenReaderEditListTitle")} onClick={(e) => { e.stopPropagation(); setIsEditingTitle(true); }} className="text-slate-400 hover:text-blue-500 focus:text-blue-500 transition-colors cursor-pointer">
+                <Pencil size={16} />
+              </button>
+              <button aria-label={t("screenReaderDeleteList")} onClick={handleDeleteList} className="text-slate-400 hover:text-rose-400 focus:text-rose-400 transition-colors cursor-pointer">
+                <Trash size={16} />
+              </button>
+              <button className="text-slate-300 text-[15px] sr-only focus:not-sr-only" onClick={() => moveListByOffset(list.id, -1)}>
+                {t("screenReaderMoveListLeft")}
+              </button>
+              <button className="text-slate-300 text-[15px] sr-only focus:not-sr-only" onClick={() => moveListByOffset(list.id, 1)}>
+                {t("screenReaderMoveListRight")}
+              </button>
+            </div>
+
           </div>
         )}
       </div>
 
       {list.type === "TELEMETRY" ? (
-          <TelemetryColumn boardCards={boardCards || []} lists={allLists || []} />
+        <TelemetryColumn boardCards={boardCards || []} lists={allLists || []} />
       ) : (
-          <div className="flex flex-col flex-grow overflow-hidden cursor-default border-t border-[#26282e]" onPointerDown={e => e.stopPropagation()}>
-            {/* List content */}
-            <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3 custom-scrollbar">
-              <SortableContext items={cards.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                {cards.map(card => (
-                  <CardComp key={card.id} card={card} currentSocketId={currentSocketId} token={token} onUpdate={onAddCard} onOpenModal={onOpenModal!} actions={actions} />
-                ))}
-              </SortableContext>
-            </div>
-            
-            {/* Footer */}
-            <div className="px-3 pb-3 pt-1 shrink-0">
-              {!isAdding ? (
-                <button 
-                  onClick={() => setIsAdding(true)}
-                  className="flex items-center justify-center gap-2 w-full p-2 rounded-md text-sm font-semibold text-slate-500 hover:bg-[#202127] hover:text-[#7896ee] transition-all"
-                >
-                  <Plus size={16} /> {t("addNewCard")}
-                </button>
-              ) : (
-                <form onSubmit={handleAddCard} className="flex flex-col gap-2">
-                  <textarea
-                    autoFocus
-                    value={newCardContent}
-                    onChange={e => setNewCardContent(e.target.value)}
-                    placeholder={t("taskTitleHint")}
-                    className="w-full px-3 py-2 text-sm bg-[#111113] border border-white/10 rounded focus:outline-none focus:border-blue-500/50 text-slate-200 resize-none font-medium"
-                    rows={3}
-                    required
-                  />
-                  <div className="flex items-center gap-2">
-                    <button type="submit" className="px-3 py-1.5 text-xs bg-[#7896ee]/10 hover:bg-[#7896ee]/20 text-[#7896ee] font-semibold border border-[#7896ee]/20 rounded transition-colors w-full">
-                      {t("addNewCardConfirm")}
-                    </button>
-                    <button type="button" onClick={() => setIsAdding(false)} className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200 bg-[#1e2025] hover:bg-[#25282d] border border-white/5 rounded transition-colors w-full">
-                      {t("addNewCardCancel")}
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
+        <div className="flex flex-col flex-grow overflow-hidden cursor-default border-t border-[#26282e]" onPointerDown={e => e.stopPropagation()}>
+          {/* List content */}
+          <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3 custom-scrollbar">
+            <SortableContext items={cards.map(t => t.id)} strategy={verticalListSortingStrategy}>
+              {cards.map(card => (
+                <CardComp key={card.id} card={card} currentSocketId={currentSocketId} token={token} onUpdate={onAddCard} onOpenModal={onOpenModal!} actions={actions} confettiEnabled={confettiEnabled} />
+              ))}
+            </SortableContext>
           </div>
+
+          {/* Footer */}
+          <div className="px-3 pb-3 pt-1 shrink-0">
+            {!isAdding ? (
+              <button
+                onClick={() => setIsAdding(true)}
+                className="flex items-center justify-center gap-2 w-full p-2 rounded-md text-[15px] font-semibold text-slate-500 hover:bg-[#202127] hover:text-[#7896ee] transition-all"
+              >
+                <Plus size={16} /> {t("addNewCard")}
+              </button>
+            ) : (
+              <form onSubmit={handleAddCard} className="flex flex-col gap-2">
+                <textarea
+                  autoFocus
+                  maxLength={100}
+                  value={newCardContent}
+                  onChange={e => setNewCardContent(e.target.value)}
+                  placeholder={t("taskTitleHint")}
+                  className="w-full px-3 py-2 text-sm bg-[#111113] border border-white/10 rounded focus:outline-none focus:border-blue-500/50 text-slate-200 resize-none font-medium"
+                  rows={3}
+                  required
+                />
+                <div className="flex items-center gap-2">
+                  <button type="submit" className="px-3 py-1.5 text-xs bg-[#7896ee]/10 hover:bg-[#7896ee]/20 text-[#7896ee] font-semibold border border-[#7896ee]/20 rounded transition-colors w-full cursor-pointer">
+                    {t("add")}
+                  </button>
+                  <button type="button" onClick={() => setIsAdding(false)} className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200 bg-[#1e2025] hover:bg-[#25282d] border border-white/5 rounded transition-colors w-full">
+                    {t("addNewCardCancel")}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
       )}
 
-      <ConfirmModal 
+      <ConfirmModal
         isOpen={showDeleteConfirm}
-        title={t("deleteBoardConfirm") || "Delete List"}
+        title={t("deleteListConfirm") || "Delete List"}
         message={t("listDeletionConfirmation")}
         onConfirm={confirmDelete}
         onCancel={() => setShowDeleteConfirm(false)}
+        confirmText={t("confirm")}
+        cancelText={t("cancel")}
       />
     </div>
   );

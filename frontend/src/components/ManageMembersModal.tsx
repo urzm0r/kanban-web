@@ -85,9 +85,9 @@ export default function ManageMembersModal({ boardId, token, currentUserId, onCl
 
                 <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
                     {loading ? (
-                        <p className="text-center text-slate-500 py-4">Loading...</p>
+                        <p className="text-center text-slate-500 py-4">{t("loading")}</p>
                     ) : members.length === 0 ? (
-                        <p className="text-center text-slate-500 py-4">No members found</p>
+                        <p className="text-center text-slate-500 py-4">{t("noMembersFound")}</p>
                     ) : (
                         members.map(member => (
                             <div key={member.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
@@ -119,7 +119,7 @@ export default function ManageMembersModal({ boardId, token, currentUserId, onCl
             <ConfirmModal 
                 isOpen={!!confirmRemoveId}
                 title={t("deleteBoardConfirm") || "Remove Member"}
-                message="Are you sure you want to remove this member from the board?"
+                message={t("removeMemberMessage")}
                 onConfirm={confirmMemberRemoval}
                 onCancel={() => setConfirmRemoveId(null)}
             />

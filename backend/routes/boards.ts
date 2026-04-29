@@ -4,6 +4,7 @@ import { Prisma } from '../generated/prisma/index.js';
 import express from 'express'
 import type { AuthRequest } from "../types.js";
 import { boardSchema, boardMemberSchema } from "../lib/zodSchemas.js";
+import io from '../lib/socketio.js';
 
 const boardsRouter = express.Router();
 
@@ -67,6 +68,38 @@ boardsRouter.post('/', authMiddleware, async (req: AuthRequest, res) => {
     }
 });
 
+// Update board (rename)
+boardsRouter.put('/:id', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const boardId = req.params.id as string;
+        const userId = req.user?.userId as string;
+
+        const parsed = boardSchema.safeParse(req.body);
+        if (!parsed.success) return res.status(400).json({ error: parsed.error });
+
+        const { title } = parsed.data;
+
+        const board = await prisma.board.findUnique({
+            where: { id: boardId },
+            select: { ownerId: true }
+        });
+
+        if (!board) return res.status(404).json({ error: "Board not found" });
+        if (board.ownerId !== userId) return res.status(403).json({ error: "Only owner can rename board" });
+
+        const updatedBoard = await prisma.board.update({
+            where: { id: boardId },
+            data: { title }
+        });
+
+        // Notify other clients in the board
+        io.to(`board:${boardId}`).emit('board:updated', updatedBoard);
+
+        res.json(updatedBoard);
+    } catch {
+        res.status(500).json({ error: "Error updating board" });
+    }
+});
 
 // Get all members of a board
 boardsRouter.get('/:id/members', authMiddleware, async (req: AuthRequest, res) => {

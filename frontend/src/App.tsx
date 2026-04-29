@@ -6,12 +6,14 @@ import Dashboard from "./components/Dashboard";
 import { parseJwt } from "./lib/jwt";
 
 function App() {
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(() => sessionStorage.getItem("kanban_token"));
 
   useEffect(() => {
+    // Keep this for potential side effects or if token is updated elsewhere, 
+    // but the initial state is now handled above.
     const savedToken = sessionStorage.getItem("kanban_token");
-    if (savedToken) setToken(savedToken);
-  }, []);
+    if (savedToken && savedToken !== token) setToken(savedToken);
+  }, [token]);
 
   const handleAuth = (newToken: string) => {
     sessionStorage.setItem("kanban_token", newToken);

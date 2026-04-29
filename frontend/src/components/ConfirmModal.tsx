@@ -22,7 +22,7 @@ export default function ConfirmModal({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4" onClick={(e) => e.stopPropagation()}>
             <div className="bg-[#1e1e24] border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200">
                 <div className="flex items-start gap-4">
                     <div className="p-3 bg-red-500/10 rounded-full flex-shrink-0">
