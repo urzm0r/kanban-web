@@ -31,7 +31,8 @@ export default function CardModal({ card, token, onClose, onUpdate, socket, boar
   const [isSaving, setIsSaving] = useState(false);
   const [descMode, setDescMode] = useState<'edit' | 'preview'>('edit');
   const tagDropRef = useRef<HTMLDivElement>(null);
-  const cardDescriptionRef = useRef<HTMLTextAreaElement>(null)
+  const cardDescriptionRef = useRef<HTMLTextAreaElement>(null);
+  const membersButtonRef = useRef<HTMLButtonElement>(null);
 
   const { t } = useTranslation();
 
@@ -211,6 +212,7 @@ export default function CardModal({ card, token, onClose, onUpdate, socket, boar
                 <label className="text-base font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2"><ContactRound size={18} /> {t("members")}</label>
                 <div className="flex flex-wrap gap-2 max-w-full overflow-x-scroll" id="members">
                   <button
+                    ref={membersButtonRef}
                     aria-label="Assign new member"
                     className="py-2 px-3 rounded-md bg-slate-800/50 text-xs font-bold transition-all border border-slate-700 text-slate-400 hover:bg-slate-700 cursor-pointer"
                     onClick={() => setShowMemberModal(true)}
@@ -355,7 +357,7 @@ export default function CardModal({ card, token, onClose, onUpdate, socket, boar
           token={token}
           cardId={card.id}
           members={members}
-          onClose={() => setShowMemberModal(false)}
+          onClose={() => {membersButtonRef?.current.focus(); setShowMemberModal(false)}}
         />
       })
     </>
