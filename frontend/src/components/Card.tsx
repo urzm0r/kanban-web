@@ -26,7 +26,10 @@ export default function Card({ card, currentSocketId, token, onUpdate, onOpenMod
 
   const { t } = useTranslation();
 
-  const moveCardByOffset = actions.moveCardByOffset;
+  const moveCardByOffset = (e, card: CardType, listOffset: number, cardOffset: number) => {
+    e.stopPropagation();
+    actions.moveCardByOffset(card, listOffset, cardOffset);
+  }
 
 
   const toggleDone = async (e: React.MouseEvent) => {
@@ -184,21 +187,22 @@ export default function Card({ card, currentSocketId, token, onUpdate, onOpenMod
           </div>)}
 
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2"
+          onKeyDown={e => e.key == "Enter" && e.stopPropagation()}>
           <button className="text-slate-300 text-[15px] sr-only focus:not-sr-only"
-            onClick={() => moveCardByOffset(card, -1, 0)}>
+            onClick={e => moveCardByOffset(e, card, -1, 0)}>
             {t("screenReaderMoveCardLeft")}
           </button>
           <button className="text-slate-300 text-[15px] sr-only focus:not-sr-only"
-            onClick={() => moveCardByOffset(card, 1, 0)}>
+            onClick={e => moveCardByOffset(e, card, 1, 0)}>
             {t("screenReaderMoveCardRight")}
           </button>
           <button className="text-slate-300 text-[15px] sr-only focus:not-sr-only"
-            onClick={() => moveCardByOffset(card, 0, 1)}>
+            onClick={e => moveCardByOffset(e, card, 0, 1)}>
             {t("screenReaderMoveCardDown")}
           </button>
           <button className="text-slate-300 text-[15px] sr-only focus:not-sr-only"
-            onClick={() => moveCardByOffset(card, 0, -1)}>
+            onClick={e => moveCardByOffset(e, card, 0, -1)}>
             {t("screenReaderMoveCardUp")}
           </button>
           {!isLockedByOther && !card.isDone && (
