@@ -15,7 +15,7 @@ interface CardMembersModalProps {
 }
 
 export default function CardMembersModal({ boardId, token, cardId, members, onClose }: CardMembersModalProps) {
-    useTranslation();
+    const { t } = useTranslation();
 
     // Modal states
     const [alertConfig, setAlertConfig] = useState<{title: string, message: string} | null>(null);
